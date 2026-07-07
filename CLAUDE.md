@@ -36,6 +36,7 @@ Supabase Auth 配置：Site URL = 生产地址；Redirect URLs 含 `http://local
 - `src/components/Settings.tsx` — 分析页右上角齿轮弹出：设置密码、退出登录
 - `src/lib/db.ts` — 所有 Supabase 读写都走这里，不要在组件里直接调 supabase.from()；演示模式时自动切到 `mockDb.ts`（内存假数据，仅在未配置 Supabase 时生效）
 - `src/lib/format.ts` — 金额/日期格式化；日期一律用本地时区 `todayStr()`，禁止 `toISOString().slice(0,10)`（会跳 UTC 日期）
+- `src/lib/export.ts` — CSV 导出（BOM + 转义 + Blob 下载）；入口在设置面板（全部/按月）和账单页头部（当月）
 - `supabase/migrations/` — 建表 SQL；改表结构时新增编号文件（002_xxx.sql），去 Supabase Dashboard → SQL Editor 手动执行，不改旧文件
 
 ## 数据约定

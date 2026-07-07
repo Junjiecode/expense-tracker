@@ -1,17 +1,44 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { fetchAllTransactions, fetchTransactions } from '../lib/db'
+import { exportTransactionsCsv } from '../lib/export'
+import { monthKey } from '../lib/format'
+import type { Category } from '../lib/types'
 
 export default function Settings({
   onClose,
   toast,
+  categories,
 }: {
   onClose: () => void
   toast: (msg: string) => void
+  categories: Category[]
 }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [busy, setBusy] = useState(false)
+  const [exportMonth, setExportMonth] = useState(monthKey())
+  const [exporting, setExporting] = useState(false)
+
+  async function exportCsv(scope: 'month' | 'all') {
+    setExporting(true)
+    try {
+      const txs =
+        scope === 'month' ? await fetchTransactions(exportMonth) : await fetchAllTransactions()
+      if (txs.length === 0) {
+        toast(scope === 'month' ? '该月没有账目' : '还没有任何账目')
+        return
+      }
+      const name = scope === 'month' ? `记账本-${exportMonth}.csv` : '记账本-全部.csv'
+      exportTransactionsCsv(txs, categories, name)
+      toast(`已导出 ${txs.length} 条`)
+    } catch (e) {
+      toast(`导出失败：${(e as Error).message}`)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ''))
@@ -74,6 +101,33 @@ export default function Settings({
             {busy ? '保存中…' : '保存密码'}
           </button>
         </form>
+
+        <div className="mt-6 space-y-3 border-t border-hairline pt-5">
+          <p className="text-[13px] font-medium text-ink-soft">导出数据（CSV，可用 Excel 打开）</p>
+          <div className="flex gap-2">
+            <input
+              type="month"
+              value={exportMonth}
+              max={monthKey()}
+              onChange={(e) => e.target.value && setExportMonth(e.target.value)}
+              className="rounded-xl border border-hairline bg-paper-raised px-3 py-2.5 text-sm outline-none"
+            />
+            <button
+              onClick={() => exportCsv('month')}
+              disabled={exporting}
+              className="flex-1 rounded-xl border border-hairline bg-paper-raised py-2.5 text-sm font-medium active:bg-hairline disabled:opacity-50"
+            >
+              导出该月
+            </button>
+          </div>
+          <button
+            onClick={() => exportCsv('all')}
+            disabled={exporting}
+            className="w-full rounded-xl border border-hairline bg-paper-raised py-2.5 text-sm font-medium active:bg-hairline disabled:opacity-50"
+          >
+            {exporting ? '导出中…' : '导出全部账目'}
+          </button>
+        </div>
 
         <button
           onClick={logout}

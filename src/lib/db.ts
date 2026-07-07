@@ -27,6 +27,18 @@ export async function fetchTransactions(month: string): Promise<Transaction[]> {
   return data.map((t) => ({ ...t, amount: Number(t.amount) }))
 }
 
+/** 全量流水（导出用）；个人数据量小，不做分页 */
+export async function fetchAllTransactions(): Promise<Transaction[]> {
+  if (demoEnabled()) return mock.fetchAllTransactions()
+  const { data, error } = await supabase
+    .from('transactions')
+    .select('*')
+    .order('date', { ascending: false })
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data.map((t) => ({ ...t, amount: Number(t.amount) }))
+}
+
 export async function insertTransaction(tx: NewTransaction): Promise<void> {
   if (demoEnabled()) return mock.insertTransaction(tx)
   const { data: userData } = await supabase.auth.getUser()

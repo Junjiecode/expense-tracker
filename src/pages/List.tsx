@@ -4,6 +4,7 @@ import { deleteTransaction, fetchTransactions, updateTransaction } from '../lib/
 import { CURRENCY, fmtDateLabel, fmtMoney, monthKey, todayStr } from '../lib/format'
 import MonthSwitcher from '../components/MonthSwitcher'
 import CategoryGrid from '../components/CategoryGrid'
+import { exportTransactionsCsv } from '../lib/export'
 
 interface Props {
   categories: Category[]
@@ -49,7 +50,23 @@ export default function List({ categories, toast }: Props) {
   return (
     <div className="px-4 pt-safe">
       <div className="sticky top-0 z-10 -mx-4 bg-paper/95 px-4 pt-3 pb-2 backdrop-blur">
-        <MonthSwitcher month={month} onChange={setMonth} />
+        <div className="relative">
+          <MonthSwitcher month={month} onChange={setMonth} />
+          <button
+            onClick={() => {
+              if (txs.length === 0) return toast('这个月没有账目可导出')
+              exportTransactionsCsv(txs, categories, `记账本-${month}.csv`)
+              toast(`已导出 ${txs.length} 条`)
+            }}
+            aria-label="导出本月 CSV"
+            className="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-stone active:text-ink"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <path d="M12 4v10m0 0-4-4m4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M5 17v3h14v-3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
         <p className="text-center text-xs text-stone">
           支出 <span className="num">{CURRENCY}{fmtMoney(totalExpense)}</span>
           <span className="mx-2">·</span>

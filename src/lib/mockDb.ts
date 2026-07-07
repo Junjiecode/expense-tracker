@@ -89,6 +89,11 @@ export const mock = {
       .sort((a, b) => (a.date === b.date ? b.created_at.localeCompare(a.created_at) : b.date.localeCompare(a.date)))
       .map((t) => ({ ...t }))
   },
+  async fetchAllTransactions(): Promise<Transaction[]> {
+    return [...transactions]
+      .sort((a, b) => (a.date === b.date ? b.created_at.localeCompare(a.created_at) : b.date.localeCompare(a.date)))
+      .map((t) => ({ ...t }))
+  },
   async insertTransaction(tx: NewTransaction): Promise<void> {
     transactions.push({
       ...tx,

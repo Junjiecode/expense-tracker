@@ -49,6 +49,7 @@ export default function Dashboard({ categories, toast }: Props) {
     .filter((t) => t.type === 'expense')
     .reduce((s, t) => s + t.amount, 0)
   const momPct = prevExpense > 0 ? ((totalExpense - prevExpense) / prevExpense) * 100 : null
+  const balance = totalIncome - totalExpense
 
   // 分类汇总，按金额降序
   const byCategory = useMemo(() => {
@@ -100,7 +101,9 @@ export default function Dashboard({ categories, toast }: Props) {
           </button>
         )}
       </div>
-      {showSettings && <Settings onClose={() => setShowSettings(false)} toast={toast} />}
+      {showSettings && (
+        <Settings onClose={() => setShowSettings(false)} toast={toast} categories={categories} />
+      )}
 
       {loading ? (
         <p className="py-16 text-center text-sm text-stone">加载中…</p>
@@ -111,28 +114,45 @@ export default function Dashboard({ categories, toast }: Props) {
         </div>
       ) : (
         <div className="space-y-6 pb-6 pt-2">
-          {/* 月度汇总 */}
+          {/* 月度汇总：结余做主角 */}
           <section className="rounded-2xl border border-hairline bg-paper-raised p-5">
-            <p className="text-xs tracking-widest text-stone">本月支出</p>
-            <p className="num mt-1 text-4xl font-bold">
-              <span className="mr-1 text-xl font-medium text-stone">{CURRENCY}</span>
-              {fmtMoney(totalExpense)}
-            </p>
-            <div className="mt-3 flex items-center gap-4 text-[13px] text-ink-soft">
-              <span>
-                收入 <span className="num">{CURRENCY}{fmtMoney(totalIncome)}</span>
-              </span>
-              <span>
-                结余{' '}
-                <span className={`num ${totalIncome - totalExpense >= 0 ? 'text-income' : 'text-seal'}`}>
-                  {CURRENCY}{fmtMoney(totalIncome - totalExpense)}
-                </span>
-              </span>
+            <div className="flex items-baseline justify-between">
+              <p className="text-xs tracking-widest text-stone">
+                {Number(month.slice(5))}月结余
+              </p>
               {momPct !== null && (
-                <span className="ml-auto text-stone">
-                  比上月 {momPct >= 0 ? '↑' : '↓'} {Math.abs(momPct).toFixed(0)}%
+                <span className="text-xs text-stone">
+                  支出比上月 {momPct >= 0 ? '↑' : '↓'} {Math.abs(momPct).toFixed(0)}%
                 </span>
               )}
+            </div>
+            <div className="mt-1 flex items-center gap-2.5">
+              <p className={`num text-4xl font-bold ${balance >= 0 ? 'text-income' : 'text-seal'}`}>
+                {balance >= 0 ? '+' : '−'}
+                <span className="text-xl font-medium">{CURRENCY}</span>
+                {fmtMoney(Math.abs(balance))}
+              </p>
+              <span
+                className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                  balance >= 0 ? 'bg-income/10 text-income' : 'bg-seal/10 text-seal'
+                }`}
+              >
+                {balance >= 0 ? '盈余' : '赤字'}
+              </span>
+            </div>
+            <div className="mt-4 flex gap-8 border-t border-hairline pt-3">
+              <div>
+                <p className="text-xs text-stone">支出</p>
+                <p className="num mt-0.5 text-lg font-semibold">
+                  {CURRENCY}{fmtMoney(totalExpense)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-stone">收入</p>
+                <p className="num mt-0.5 text-lg font-semibold text-income">
+                  {CURRENCY}{fmtMoney(totalIncome)}
+                </p>
+              </div>
             </div>
           </section>
 
