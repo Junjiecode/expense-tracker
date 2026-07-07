@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Papa from 'papaparse'
 import type { Category, CategoryRule } from '../lib/types'
 import { fetchExistingHashes, fetchRules, insertTransactions, matchRule, saveRule } from '../lib/db'
-import { CURRENCY, fmtMoney, sha256 } from '../lib/format'
+import { fmtMoney, getCurrency, sha256 } from '../lib/format'
 import { guessColumns, parseAmount, parseDate, type DateFormat } from '../lib/csv'
 
 interface Props {
@@ -387,7 +387,7 @@ export default function Import({ categories, toast }: Props) {
         >
           {busy
             ? '导入中…'
-            : `导入 ${included.length} 条 · ${CURRENCY}${fmtMoney(
+            : `导入 ${included.length} 条 · ${getCurrency()}${fmtMoney(
                 included.filter((r) => r.type === 'expense').reduce((s, r) => s + r.amount, 0),
               )}`}
         </button>

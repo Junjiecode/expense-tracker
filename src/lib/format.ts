@@ -1,4 +1,15 @@
-export const CURRENCY = '¥'
+export type Currency = '€' | '¥'
+
+const CURRENCY_KEY = 'currency'
+
+/** 全局显示币种（仅换符号，不折算金额），默认欧元 */
+export function getCurrency(): Currency {
+  return localStorage.getItem(CURRENCY_KEY) === '¥' ? '¥' : '€'
+}
+
+export function setCurrency(c: Currency): void {
+  localStorage.setItem(CURRENCY_KEY, c)
+}
 
 export function fmtMoney(n: number): string {
   return n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -39,7 +50,7 @@ export function fmtMonth(month: string): string {
   return `${y}年${Number(m)}月`
 }
 
-const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
+export const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 
 export function fmtDateLabel(date: string): string {
   const today = todayStr()

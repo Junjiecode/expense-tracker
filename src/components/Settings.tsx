@@ -2,17 +2,25 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { fetchAllTransactions, fetchTransactions } from '../lib/db'
 import { exportTransactionsCsv } from '../lib/export'
-import { monthKey } from '../lib/format'
+import { getCurrency, monthKey, setCurrency } from '../lib/format'
+import type { Currency } from '../lib/format'
 import type { Category } from '../lib/types'
+
+const CURRENCIES: { symbol: Currency; label: string }[] = [
+  { symbol: '€', label: '欧元' },
+  { symbol: '¥', label: '人民币' },
+]
 
 export default function Settings({
   onClose,
   toast,
   categories,
+  onCurrencyChange,
 }: {
   onClose: () => void
   toast: (msg: string) => void
   categories: Category[]
+  onCurrencyChange?: (c: Currency) => void
 }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -20,6 +28,13 @@ export default function Settings({
   const [busy, setBusy] = useState(false)
   const [exportMonth, setExportMonth] = useState(monthKey())
   const [exporting, setExporting] = useState(false)
+  const [currency, setCurrencyState] = useState(getCurrency())
+
+  function switchCurrency(c: Currency) {
+    setCurrency(c)
+    setCurrencyState(c)
+    onCurrencyChange?.(c)
+  }
 
   async function exportCsv(scope: 'month' | 'all') {
     setExporting(true)
@@ -127,6 +142,25 @@ export default function Settings({
           >
             {exporting ? '导出中…' : '导出全部账目'}
           </button>
+        </div>
+
+        <div className="mt-6 space-y-3 border-t border-hairline pt-5">
+          <p className="text-[13px] font-medium text-ink-soft">货币符号（仅显示，不折算金额）</p>
+          <div className="flex gap-2">
+            {CURRENCIES.map(({ symbol, label }) => (
+              <button
+                key={symbol}
+                onClick={() => switchCurrency(symbol)}
+                className={`flex-1 rounded-xl border py-2.5 text-sm ${
+                  currency === symbol
+                    ? 'border-seal bg-seal/5 font-semibold text-seal'
+                    : 'border-hairline bg-paper-raised font-medium text-ink-soft active:bg-hairline'
+                }`}
+              >
+                {symbol} {label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <button

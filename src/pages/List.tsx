@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Category, Transaction, TxType } from '../lib/types'
 import { deleteTransaction, fetchTransactions, updateTransaction } from '../lib/db'
-import { CURRENCY, fmtDateLabel, fmtMoney, monthKey, todayStr } from '../lib/format'
+import { fmtDateLabel, fmtMoney, getCurrency, monthKey, todayStr } from '../lib/format'
 import MonthSwitcher from '../components/MonthSwitcher'
 import CategoryGrid from '../components/CategoryGrid'
 import { exportTransactionsCsv } from '../lib/export'
@@ -17,6 +17,7 @@ export default function List({ categories, toast }: Props) {
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<Transaction | null>(null)
   const catMap = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories])
+  const currency = getCurrency()
 
   async function load() {
     setLoading(true)
@@ -68,9 +69,9 @@ export default function List({ categories, toast }: Props) {
           </button>
         </div>
         <p className="text-center text-xs text-stone">
-          支出 <span className="num">{CURRENCY}{fmtMoney(totalExpense)}</span>
+          支出 <span className="num">{currency}{fmtMoney(totalExpense)}</span>
           <span className="mx-2">·</span>
-          收入 <span className="num">{CURRENCY}{fmtMoney(totalIncome)}</span>
+          收入 <span className="num">{currency}{fmtMoney(totalIncome)}</span>
         </p>
       </div>
 
@@ -93,7 +94,7 @@ export default function List({ categories, toast }: Props) {
                   <h3 className="text-[13px] font-medium text-ink-soft">{fmtDateLabel(date)}</h3>
                   {dayExpense > 0 && (
                     <span className="num text-xs text-stone">
-                      支 {CURRENCY}{fmtMoney(dayExpense)}
+                      支 {currency}{fmtMoney(dayExpense)}
                     </span>
                   )}
                 </div>

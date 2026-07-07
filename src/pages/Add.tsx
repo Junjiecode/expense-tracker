@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import type { Category, TxType } from '../lib/types'
 import { insertTransaction } from '../lib/db'
-import { CURRENCY, fmtDateLabel, fmtMoney, todayStr } from '../lib/format'
+import { fmtDateLabel, fmtMoney, getCurrency, todayStr } from '../lib/format'
 import CategoryGrid from '../components/CategoryGrid'
 
 interface Props {
@@ -18,6 +18,7 @@ export default function Add({ categories, toast }: Props) {
   const [stamping, setStamping] = useState(false)
   const [saving, setSaving] = useState(false)
   const dateInput = useRef<HTMLInputElement>(null)
+  const currency = getCurrency()
 
   function press(key: string) {
     setAmount((cur) => {
@@ -55,7 +56,7 @@ export default function Add({ categories, toast }: Props) {
         source: 'manual',
         import_hash: null,
       })
-      toast(`已入账 ${CURRENCY}${fmtMoney(value)}`)
+      toast(`已入账 ${currency}${fmtMoney(value)}`)
       setAmount('')
       setNote('')
       setDate(todayStr())
@@ -124,7 +125,7 @@ export default function Add({ categories, toast }: Props) {
           />
         </button>
         <div className="flex min-w-0 items-baseline gap-1">
-          <span className="text-2xl text-stone">{CURRENCY}</span>
+          <span className="text-2xl text-stone">{currency}</span>
           <span className={`num truncate text-5xl font-bold ${amount === '' ? 'text-hairline' : ''}`}>
             {displayAmount}
           </span>

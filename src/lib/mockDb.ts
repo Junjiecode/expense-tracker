@@ -57,10 +57,8 @@ function addDemoTx(date: string, amount: number, catIdx: number, note = '') {
   })
 }
 
-// 造两个月的演示数据
+// 造六个月的演示数据（趋势图需要），金额按月乘确定性起伏系数
 {
-  const cur = monthKey()
-  const prev = prevMonth(cur)
   const today = Number(todayStr().slice(8, 10))
   const samples: [number, number, number, string][] = [
     [1, 32.5, 0, '早餐'], [1, 8, 1, '地铁'], [2, 128, 2, ''], [3, 45.8, 0, '午饭'],
@@ -68,12 +66,16 @@ function addDemoTx(date: string, amount: number, catIdx: number, note = '') {
     [8, 9.9, 7, '视频会员'], [9, 88, 0, '聚餐'], [10, 12, 1, ''], [11, 199, 2, '球鞋'],
     [12, 36, 0, ''], [13, 50, 6, '感冒药'], [14, 20, 1, '打车'],
   ]
-  for (const [day, amt, cat, note] of samples) {
-    if (day <= today) addDemoTx(`${cur}-${String(day).padStart(2, '0')}`, amt, cat, note)
-    addDemoTx(`${prev}-${String(day).padStart(2, '0')}`, amt * 1.15, cat, note)
+  const factors = [1, 1.15, 0.85, 1.3, 0.95, 1.1]
+  let m = monthKey()
+  for (let i = 0; i < 6; i++) {
+    for (const [day, amt, cat, note] of samples) {
+      if (i === 0 && day > today) continue
+      addDemoTx(`${m}-${String(day).padStart(2, '0')}`, Math.round(amt * factors[i] * 100) / 100, cat, note)
+    }
+    addDemoTx(`${m}-01`, 12000, 9, '月薪')
+    m = prevMonth(m)
   }
-  if (today >= 1) addDemoTx(`${cur}-01`, 12000, 9, '月薪')
-  addDemoTx(`${prev}-01`, 12000, 9, '月薪')
 }
 
 const rules: CategoryRule[] = []
@@ -84,6 +86,14 @@ export const mock = {
   },
   async fetchTransactions(month: string): Promise<Transaction[]> {
     const [start, end] = monthRange(month)
+    return transactions
+      .filter((t) => t.date >= start && t.date < end)
+      .sort((a, b) => (a.date === b.date ? b.created_at.localeCompare(a.created_at) : b.date.localeCompare(a.date)))
+      .map((t) => ({ ...t }))
+  },
+  async fetchTransactionsRange(fromMonth: string, toMonth: string): Promise<Transaction[]> {
+    const start = monthRange(fromMonth)[0]
+    const end = monthRange(toMonth)[1]
     return transactions
       .filter((t) => t.date >= start && t.date < end)
       .sort((a, b) => (a.date === b.date ? b.created_at.localeCompare(a.created_at) : b.date.localeCompare(a.date)))

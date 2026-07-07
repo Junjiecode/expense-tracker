@@ -5,15 +5,24 @@ import {
   Cell,
   Pie,
   PieChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
 import type { Category, Transaction } from '../lib/types'
-import { fetchTransactions } from '../lib/db'
+import { fetchTransactionsRange } from '../lib/db'
 import { isConfigured } from '../lib/supabase'
-import { CURRENCY, fmtMoney, fmtMonth, monthKey, prevMonth } from '../lib/format'
+import {
+  WEEKDAYS,
+  fmtMoney,
+  fmtMonth,
+  getCurrency,
+  monthKey,
+  prevMonth,
+  todayStr,
+} from '../lib/format'
 import MonthSwitcher from '../components/MonthSwitcher'
 import Settings from '../components/Settings'
 
@@ -22,32 +31,53 @@ interface Props {
   toast: (msg: string) => void
 }
 
-const OTHER_COLOR = '#8A8A82'
+// 图表用色：SVG 属性不认 CSS 变量，与 src/index.css 的 @theme 保持同步
+const C = {
+  paper: '#FAFAF7',
+  raised: '#FFFFFF',
+  ink: '#1A1A18',
+  stone: '#8A8A82',
+  hairline: '#E8E6DF',
+  seal: '#C0392B',
+  income: '#2E7D5B',
+}
+
+/** 趋势窗口：选中月及往前共 6 个月 */
+const TREND_MONTHS = 6
+/** 饼图最多分片数，超出的小类合并为「其他」 */
+const MAX_PIE_SLICES = 6
+
+function monthsAgo(month: string, n: number): string {
+  let m = month
+  for (let i = 0; i < n; i++) m = prevMonth(m)
+  return m
+}
 
 export default function Dashboard({ categories, toast }: Props) {
   const [month, setMonth] = useState(monthKey())
-  const [txs, setTxs] = useState<Transaction[]>([])
-  const [prevTxs, setPrevTxs] = useState<Transaction[]>([])
+  const [rangeTxs, setRangeTxs] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
+  const [currency, setCurrencyView] = useState(getCurrency())
   const catMap = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories])
 
   useEffect(() => {
     setLoading(true)
-    Promise.all([fetchTransactions(month), fetchTransactions(prevMonth(month))])
-      .then(([cur, prev]) => {
-        setTxs(cur)
-        setPrevTxs(prev)
-      })
+    fetchTransactionsRange(monthsAgo(month, TREND_MONTHS - 1), month)
+      .then(setRangeTxs)
       .finally(() => setLoading(false))
   }, [month])
 
-  const expenses = txs.filter((t) => t.type === 'expense')
+  const txs = useMemo(() => rangeTxs.filter((t) => t.date.startsWith(month)), [rangeTxs, month])
+  const expenses = useMemo(() => txs.filter((t) => t.type === 'expense'), [txs])
   const totalExpense = expenses.reduce((s, t) => s + t.amount, 0)
   const totalIncome = txs.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0)
-  const prevExpense = prevTxs
-    .filter((t) => t.type === 'expense')
-    .reduce((s, t) => s + t.amount, 0)
+  const prevExpense = useMemo(() => {
+    const pm = prevMonth(month)
+    return rangeTxs
+      .filter((t) => t.date.startsWith(pm) && t.type === 'expense')
+      .reduce((s, t) => s + t.amount, 0)
+  }, [rangeTxs, month])
   const momPct = prevExpense > 0 ? ((totalExpense - prevExpense) / prevExpense) * 100 : null
   const balance = totalIncome - totalExpense
 
@@ -65,12 +95,20 @@ export default function Dashboard({ categories, toast }: Props) {
           id,
           name: cat?.name ?? '未分类',
           icon: cat?.icon ?? '❓',
-          color: cat?.color ?? OTHER_COLOR,
+          color: cat?.color ?? C.stone,
           value,
         }
       })
       .sort((a, b) => b.value - a.value)
   }, [expenses, catMap])
+
+  // 饼图数据：小类折叠成「其他」，下方排行仍显示完整明细
+  const pieData = useMemo(() => {
+    if (byCategory.length <= MAX_PIE_SLICES) return byCategory
+    const top = byCategory.slice(0, MAX_PIE_SLICES - 1)
+    const rest = byCategory.slice(MAX_PIE_SLICES - 1).reduce((s, c) => s + c.value, 0)
+    return [...top, { id: 'fold', name: '其他', icon: '', color: C.stone, value: rest }]
+  }, [byCategory])
 
   // 每日支出
   const daily = useMemo(() => {
@@ -83,6 +121,32 @@ export default function Dashboard({ categories, toast }: Props) {
     }
     return arr
   }, [expenses, month])
+
+  // 日均支出：当前月按已过天数，历史月按整月天数
+  const elapsedDays = month === monthKey() ? Number(todayStr().slice(8, 10)) : daily.length
+  const dailyAvg = elapsedDays > 0 ? totalExpense / elapsedDays : 0
+
+  // 近半年逐月收支（窗口锚定选中月，选中月在最右）
+  const trend = useMemo(() => {
+    const months = Array.from({ length: TREND_MONTHS }, (_, i) =>
+      monthsAgo(month, TREND_MONTHS - 1 - i),
+    )
+    const sums = new Map(months.map((m) => [m, { expense: 0, income: 0 }]))
+    for (const t of rangeTxs) {
+      const s = sums.get(t.date.slice(0, 7))
+      if (s) s[t.type] += t.amount
+    }
+    return months.map((m) => ({
+      month: m,
+      label: `${Number(m.slice(5))}月`,
+      ...sums.get(m)!,
+    }))
+  }, [rangeTxs, month])
+
+  function jumpToTrendMonth(index: number) {
+    const m = trend[index]?.month
+    if (m && m !== month) setMonth(m)
+  }
 
   return (
     <div className="px-4 pt-safe">
@@ -102,7 +166,12 @@ export default function Dashboard({ categories, toast }: Props) {
         )}
       </div>
       {showSettings && (
-        <Settings onClose={() => setShowSettings(false)} toast={toast} categories={categories} />
+        <Settings
+          onClose={() => setShowSettings(false)}
+          toast={toast}
+          categories={categories}
+          onCurrencyChange={setCurrencyView}
+        />
       )}
 
       {loading ? (
@@ -129,7 +198,7 @@ export default function Dashboard({ categories, toast }: Props) {
             <div className="mt-1 flex items-center gap-2.5">
               <p className={`num text-4xl font-bold ${balance >= 0 ? 'text-income' : 'text-seal'}`}>
                 {balance >= 0 ? '+' : '−'}
-                <span className="text-xl font-medium">{CURRENCY}</span>
+                <span className="text-xl font-medium">{currency}</span>
                 {fmtMoney(Math.abs(balance))}
               </p>
               <span
@@ -144,13 +213,13 @@ export default function Dashboard({ categories, toast }: Props) {
               <div>
                 <p className="text-xs text-stone">支出</p>
                 <p className="num mt-0.5 text-lg font-semibold">
-                  {CURRENCY}{fmtMoney(totalExpense)}
+                  {currency}{fmtMoney(totalExpense)}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-stone">收入</p>
                 <p className="num mt-0.5 text-lg font-semibold text-income">
-                  {CURRENCY}{fmtMoney(totalIncome)}
+                  {currency}{fmtMoney(totalIncome)}
                 </p>
               </div>
             </div>
@@ -160,29 +229,40 @@ export default function Dashboard({ categories, toast }: Props) {
           {byCategory.length > 0 && (
             <section>
               <h2 className="mb-1 text-sm font-semibold text-ink-soft">支出构成</h2>
-              <div className="h-52">
+              <div className="relative h-52">
                 <ResponsiveContainer>
                   <PieChart>
                     <Pie
-                      data={byCategory}
+                      data={pieData}
                       dataKey="value"
                       nameKey="name"
                       innerRadius="62%"
                       outerRadius="95%"
-                      stroke="#FAFAF7"
+                      stroke={C.paper}
                       strokeWidth={2}
                       isAnimationActive={false}
                     >
-                      {byCategory.map((c) => (
+                      {pieData.map((c) => (
                         <Cell key={c.id} fill={c.color} />
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(v) => `${CURRENCY}${fmtMoney(Number(v))}`}
+                      formatter={(v) => {
+                        const n = Number(v)
+                        const pct = totalExpense > 0 ? Math.round((n / totalExpense) * 100) : 0
+                        return `${currency}${fmtMoney(n)} · ${pct}%`
+                      }}
                       contentStyle={tooltipStyle}
                     />
                   </PieChart>
                 </ResponsiveContainer>
+                {/* 环形中心：本月总支出 */}
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                  <p className="text-xs text-stone">支出</p>
+                  <p className="num text-lg font-semibold">
+                    {currency}{fmtMoney(totalExpense)}
+                  </p>
+                </div>
               </div>
               {/* 分类排行：兼作图例与数据表 */}
               <ul className="mt-2 space-y-2.5">
@@ -220,20 +300,32 @@ export default function Dashboard({ categories, toast }: Props) {
                   <XAxis
                     dataKey="day"
                     tickLine={false}
-                    axisLine={{ stroke: '#E8E6DF' }}
-                    tick={{ fontSize: 10, fill: '#8A8A82' }}
+                    axisLine={{ stroke: C.hairline }}
+                    tick={{ fontSize: 10, fill: C.stone }}
                     ticks={[1, 5, 10, 15, 20, 25, daily.length]}
                   />
                   <YAxis hide />
                   <Tooltip
-                    cursor={{ fill: '#E8E6DF', opacity: 0.4 }}
-                    formatter={(v) => [`${CURRENCY}${fmtMoney(Number(v))}`, '支出']}
-                    labelFormatter={(d) => `${Number(month.slice(5))}月${d}日`}
+                    cursor={{ fill: C.hairline, opacity: 0.4 }}
+                    formatter={(v) => [`${currency}${fmtMoney(Number(v))}`, '支出']}
+                    labelFormatter={(d) => {
+                      const [y, m] = month.split('-').map(Number)
+                      const weekday = WEEKDAYS[new Date(y, m - 1, Number(d)).getDay()]
+                      return `${m}月${d}日 周${weekday}`
+                    }}
                     contentStyle={tooltipStyle}
                   />
+                  {dailyAvg > 0 && (
+                    <ReferenceLine
+                      y={dailyAvg}
+                      stroke={C.stone}
+                      strokeDasharray="4 3"
+                      label={{ value: '日均', fontSize: 10, fill: C.stone, position: 'insideTopRight' }}
+                    />
+                  )}
                   <Bar
                     dataKey="value"
-                    fill="#C0392B"
+                    fill={C.seal}
                     radius={[4, 4, 0, 0]}
                     isAnimationActive={false}
                   />
@@ -241,16 +333,117 @@ export default function Dashboard({ categories, toast }: Props) {
               </ResponsiveContainer>
             </div>
           </section>
+
+          {/* 近半年收支趋势 */}
+          <section>
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-ink-soft">近半年收支</h2>
+              <div className="flex items-center gap-3 text-xs text-stone">
+                <span className="flex items-center gap-1">
+                  <span className="h-2 w-3 rounded-sm" style={{ backgroundColor: C.seal }} />
+                  支出
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="h-2 w-3 rounded-sm" style={{ backgroundColor: C.income }} />
+                  收入
+                </span>
+              </div>
+            </div>
+            <div className="h-40">
+              <ResponsiveContainer>
+                <BarChart
+                  data={trend}
+                  margin={{ top: 4, right: 0, bottom: 0, left: 0 }}
+                  barGap={2}
+                  barCategoryGap="24%"
+                  // 点整个月份列带即可跳月，比点细柱子容易（尤其手机上）
+                  onClick={(state) => {
+                    // recharts 3 的 activeTooltipIndex 可能是字符串
+                    const i = Number(state?.activeTooltipIndex)
+                    if (Number.isInteger(i) && i >= 0) jumpToTrendMonth(i)
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <XAxis
+                    dataKey="label"
+                    tickLine={false}
+                    axisLine={{ stroke: C.hairline }}
+                    tick={{ fontSize: 10, fill: C.stone }}
+                  />
+                  <YAxis hide />
+                  <Tooltip
+                    cursor={{ fill: C.hairline, opacity: 0.4 }}
+                    content={<TrendTooltip currency={currency} />}
+                  />
+                  <Bar
+                    dataKey="expense"
+                    fill={C.seal}
+                    maxBarSize={18}
+                    radius={[3, 3, 0, 0]}
+                    isAnimationActive={false}
+                  >
+                    {trend.map((d) => (
+                      <Cell key={d.month} fillOpacity={d.month === month ? 1 : 0.55} />
+                    ))}
+                  </Bar>
+                  <Bar
+                    dataKey="income"
+                    fill={C.income}
+                    maxBarSize={18}
+                    radius={[3, 3, 0, 0]}
+                    isAnimationActive={false}
+                  >
+                    {trend.map((d) => (
+                      <Cell key={d.month} fillOpacity={d.month === month ? 1 : 0.55} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <p className="mt-1 text-center text-[11px] text-stone">点柱子可跳到该月</p>
+          </section>
         </div>
       )}
     </div>
   )
 }
 
+function TrendTooltip({
+  active,
+  payload,
+  currency,
+}: {
+  active?: boolean
+  payload?: { payload: { month: string; expense: number; income: number } }[]
+  currency: string
+}) {
+  if (!active || !payload?.length) return null
+  const d = payload[0].payload
+  const balance = d.income - d.expense
+  return (
+    <div style={tooltipStyle}>
+      <p className="font-medium">{fmtMonth(d.month)}</p>
+      <p className="num mt-1 flex items-center gap-1.5">
+        <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: C.seal }} />
+        支出 {currency}{fmtMoney(d.expense)}
+      </p>
+      <p className="num mt-0.5 flex items-center gap-1.5">
+        <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: C.income }} />
+        收入 {currency}{fmtMoney(d.income)}
+      </p>
+      <p className="num mt-1 border-t pt-1" style={{ borderColor: C.hairline }}>
+        结余 {balance >= 0 ? '+' : '−'}{currency}{fmtMoney(Math.abs(balance))}
+      </p>
+    </div>
+  )
+}
+
 const tooltipStyle: React.CSSProperties = {
-  background: '#FFFFFF',
-  border: '1px solid #E8E6DF',
+  background: C.raised,
+  border: `1px solid ${C.hairline}`,
   borderRadius: 10,
   fontSize: 12,
-  color: '#1A1A18',
+  color: C.ink,
+  boxShadow: '0 4px 12px rgba(26, 26, 24, 0.08)',
+  padding: '6px 10px',
 }

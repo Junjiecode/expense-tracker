@@ -27,6 +27,23 @@ export async function fetchTransactions(month: string): Promise<Transaction[]> {
   return data.map((t) => ({ ...t, amount: Number(t.amount) }))
 }
 
+/** 区间流水 [fromMonth 首日, toMonth 下月首日)，分析页跨月统计用 */
+export async function fetchTransactionsRange(
+  fromMonth: string,
+  toMonth: string,
+): Promise<Transaction[]> {
+  if (demoEnabled()) return mock.fetchTransactionsRange(fromMonth, toMonth)
+  const { data, error } = await supabase
+    .from('transactions')
+    .select('*')
+    .gte('date', monthRange(fromMonth)[0])
+    .lt('date', monthRange(toMonth)[1])
+    .order('date', { ascending: false })
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data.map((t) => ({ ...t, amount: Number(t.amount) }))
+}
+
 /** 全量流水（导出用）；个人数据量小，不做分页 */
 export async function fetchAllTransactions(): Promise<Transaction[]> {
   if (demoEnabled()) return mock.fetchAllTransactions()
