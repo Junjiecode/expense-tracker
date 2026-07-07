@@ -94,12 +94,41 @@ export default function Add({ categories, toast }: Props) {
         </div>
       </div>
 
-      {/* 金额 */}
-      <div className="flex items-baseline justify-end gap-1 border-b border-hairline px-2 py-6">
-        <span className="text-2xl text-stone">{CURRENCY}</span>
-        <span className={`num text-5xl font-bold ${amount === '' ? 'text-hairline' : ''}`}>
-          {displayAmount}
-        </span>
+      {/* 日期 + 金额 */}
+      <div className="flex items-center justify-between gap-3 border-b border-hairline px-2 py-6">
+        <button
+          onClick={() => {
+            const el = dateInput.current
+            if (!el) return
+            if (typeof el.showPicker === 'function') el.showPicker()
+            else el.click()
+          }}
+          className="relative flex shrink-0 items-center gap-1.5 rounded-full border border-hairline bg-paper-raised px-3.5 py-2 text-sm text-ink-soft active:bg-hairline"
+        >
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <rect x="4" y="6" width="16" height="14" rx="2" />
+            <path d="M4 10h16M8 4v4M16 4v4" strokeLinecap="round" />
+          </svg>
+          {fmtDateLabel(date)}
+          <svg viewBox="0 0 24 24" className="h-3 w-3 text-stone" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <input
+            ref={dateInput}
+            type="date"
+            value={date}
+            max={todayStr()}
+            onChange={(e) => e.target.value && setDate(e.target.value)}
+            className="absolute inset-0 opacity-0"
+            tabIndex={-1}
+          />
+        </button>
+        <div className="flex min-w-0 items-baseline gap-1">
+          <span className="text-2xl text-stone">{CURRENCY}</span>
+          <span className={`num truncate text-5xl font-bold ${amount === '' ? 'text-hairline' : ''}`}>
+            {displayAmount}
+          </span>
+        </div>
       </div>
 
       {/* 分类 */}
@@ -125,25 +154,15 @@ export default function Add({ categories, toast }: Props) {
         {['1', '2', '3'].map((k) => (
           <Key key={k} label={k} onPress={() => press(k)} />
         ))}
-        <Key label="⌫" onPress={() => press('del')} muted />
+        <button
+          onClick={() => press('del')}
+          className="num row-span-2 rounded-xl border border-hairline bg-paper-raised text-xl text-ink-soft active:bg-hairline"
+        >
+          ⌫
+        </button>
         {['4', '5', '6'].map((k) => (
           <Key key={k} label={k} onPress={() => press(k)} />
         ))}
-        <button
-          onClick={() => dateInput.current?.showPicker?.() ?? dateInput.current?.click()}
-          className="relative rounded-xl border border-hairline bg-paper-raised text-xs text-ink-soft active:bg-hairline"
-        >
-          {fmtDateLabel(date)}
-          <input
-            ref={dateInput}
-            type="date"
-            value={date}
-            max={todayStr()}
-            onChange={(e) => e.target.value && setDate(e.target.value)}
-            className="absolute inset-0 opacity-0"
-            tabIndex={-1}
-          />
-        </button>
         {['7', '8', '9'].map((k) => (
           <Key key={k} label={k} onPress={() => press(k)} />
         ))}

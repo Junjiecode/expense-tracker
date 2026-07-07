@@ -1,11 +1,13 @@
 // 演示模式：无 Supabase 配置时的内存数据源，方便先体验再接后端
+import { isConfigured } from './supabase'
 import type { Category, CategoryRule, NewTransaction, Transaction } from './types'
 import { monthKey, monthRange, prevMonth, todayStr } from './format'
 
 const UID = 'demo'
 
+// 配置好真实后端后，残留的演示开关必须失效
 export function demoEnabled(): boolean {
-  return localStorage.getItem('demo-mode') === '1'
+  return !isConfigured && localStorage.getItem('demo-mode') === '1'
 }
 
 export function enableDemo(): void {
