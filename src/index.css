@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+@theme {
+  /* 中式账本配色：纸白 / 墨 / 朱砂印 */
+  --color-paper: #FAFAF7;
+  --color-paper-raised: #FFFFFF;
+  --color-ink: #1A1A18;
+  --color-ink-soft: #55554E;
+  --color-stone: #8A8A82;
+  --color-hairline: #E8E6DF;
+  --color-seal: #C0392B;
+  --color-seal-deep: #A93226;
+  --color-income: #2E7D5B;
+
+  --font-sans: -apple-system, "PingFang SC", "Noto Sans SC", "Helvetica Neue", sans-serif;
+}
+
+html {
+  background: var(--color-paper);
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  background: var(--color-paper);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+/* 金额数字：等宽数字，账本味 */
+.num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* 印章按钮按下的盖章动效 */
+@keyframes stamp {
+  0% { transform: scale(1); }
+  35% { transform: scale(0.88); }
+  100% { transform: scale(1); }
+}
+.stamping {
+  animation: stamp 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stamping { animation: none; }
+}
+
+/* iOS 安全区 */
+.pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+.pt-safe { padding-top: env(safe-area-inset-top); }
