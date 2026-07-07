@@ -12,20 +12,24 @@ import {
 } from 'recharts'
 import type { Category, Transaction } from '../lib/types'
 import { fetchTransactions } from '../lib/db'
+import { isConfigured } from '../lib/supabase'
 import { CURRENCY, fmtMoney, fmtMonth, monthKey, prevMonth } from '../lib/format'
 import MonthSwitcher from '../components/MonthSwitcher'
+import Settings from '../components/Settings'
 
 interface Props {
   categories: Category[]
+  toast: (msg: string) => void
 }
 
 const OTHER_COLOR = '#8A8A82'
 
-export default function Dashboard({ categories }: Props) {
+export default function Dashboard({ categories, toast }: Props) {
   const [month, setMonth] = useState(monthKey())
   const [txs, setTxs] = useState<Transaction[]>([])
   const [prevTxs, setPrevTxs] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
+  const [showSettings, setShowSettings] = useState(false)
   const catMap = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories])
 
   useEffect(() => {
@@ -81,9 +85,22 @@ export default function Dashboard({ categories }: Props) {
 
   return (
     <div className="px-4 pt-safe">
-      <div className="pt-3">
+      <div className="relative pt-3">
         <MonthSwitcher month={month} onChange={setMonth} />
+        {isConfigured && (
+          <button
+            onClick={() => setShowSettings(true)}
+            aria-label="设置"
+            className="absolute right-0 top-1/2 mt-1.5 -translate-y-1/2 p-2 text-stone active:text-ink"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.56-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.08a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.08a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1.03Z" />
+            </svg>
+          </button>
+        )}
       </div>
+      {showSettings && <Settings onClose={() => setShowSettings(false)} toast={toast} />}
 
       {loading ? (
         <p className="py-16 text-center text-sm text-stone">加载中…</p>
