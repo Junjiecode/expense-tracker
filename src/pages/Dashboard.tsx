@@ -26,6 +26,9 @@ import MonthSwitcher from '../components/MonthSwitcher'
 import Settings from '../components/Settings'
 import { useChartTheme } from '../components/charts/chartTheme'
 import type { ChartColors } from '../components/charts/chartTheme'
+import CumulativeChart from '../components/charts/CumulativeChart'
+import BalanceLine from '../components/charts/BalanceLine'
+import CategoryTrendChart from '../components/charts/CategoryTrendChart'
 
 interface Props {
   categories: Category[]
@@ -242,6 +245,9 @@ export default function Dashboard({ categories, toast }: Props) {
             </div>
           </section>
 
+          {/* 支出节奏：逐日累计 vs 上月同期 */}
+          <CumulativeChart rangeTxs={rangeTxs} month={month} currency={currency} />
+
           {/* 分类占比 */}
           {byCategory.length > 0 && (
             <section>
@@ -419,6 +425,17 @@ export default function Dashboard({ categories, toast }: Props) {
             </div>
             <p className="mt-1 text-center text-[11px] text-stone">点柱子可跳到该月</p>
           </section>
+
+          {/* 近半年结余走势 */}
+          <BalanceLine trend={trend} currency={currency} />
+
+          {/* 分类支出趋势 */}
+          <CategoryTrendChart
+            rangeTxs={rangeTxs}
+            months={trend.map((t) => t.month)}
+            catMap={catMap}
+            currency={currency}
+          />
         </div>
       )}
     </div>
