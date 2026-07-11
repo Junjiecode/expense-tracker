@@ -10,6 +10,15 @@
     <meta name="apple-mobile-web-app-title" content="记账" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>记账本</title>
+    <script>
+      // 首帧防闪：在 React 挂载前按 localStorage/系统偏好落地主题
+      try {
+        var t = localStorage.getItem('theme');
+        var d = t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = d ? 'dark' : 'light';
+        if (d) document.querySelector('meta[name="theme-color"]').content = '#1B1B19';
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -1,14 +1,22 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { supabase, isConfigured } from '../lib/supabase'
 import { fetchAllTransactions, fetchTransactions } from '../lib/db'
 import { exportTransactionsCsv } from '../lib/export'
 import { getCurrency, monthKey, setCurrency } from '../lib/format'
 import type { Currency } from '../lib/format'
+import { getThemeMode, setThemeMode } from '../lib/theme'
+import type { ThemeMode } from '../lib/theme'
 import type { Category } from '../lib/types'
 
 const CURRENCIES: { symbol: Currency; label: string }[] = [
   { symbol: '€', label: '欧元' },
   { symbol: '¥', label: '人民币' },
+]
+
+const THEMES: { mode: ThemeMode; label: string }[] = [
+  { mode: 'light', label: '浅色' },
+  { mode: 'dark', label: '深色' },
+  { mode: 'system', label: '跟随系统' },
 ]
 
 export default function Settings({
@@ -29,11 +37,17 @@ export default function Settings({
   const [exportMonth, setExportMonth] = useState(monthKey())
   const [exporting, setExporting] = useState(false)
   const [currency, setCurrencyState] = useState(getCurrency())
+  const [themeMode, setThemeModeState] = useState(getThemeMode())
 
   function switchCurrency(c: Currency) {
     setCurrency(c)
     setCurrencyState(c)
     onCurrencyChange?.(c)
+  }
+
+  function switchTheme(m: ThemeMode) {
+    setThemeMode(m)
+    setThemeModeState(m)
   }
 
   async function exportCsv(scope: 'month' | 'all') {
@@ -56,6 +70,7 @@ export default function Settings({
   }
 
   useEffect(() => {
+    if (!isConfigured) return // 演示模式没有 supabase 客户端
     supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? ''))
   }, [])
 
@@ -79,43 +94,45 @@ export default function Settings({
   }
 
   return (
-    <div className="fixed inset-0 z-30 flex items-end justify-center bg-ink/40" onClick={onClose}>
+    <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/40" onClick={onClose}>
       <div
         className="w-full max-w-lg rounded-t-2xl bg-paper p-5 pb-safe"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-hairline" />
         <h2 className="text-lg font-bold">设置</h2>
-        <p className="mt-1 text-xs text-stone">当前账号：{email}</p>
+        <p className="mt-1 text-xs text-stone">{isConfigured ? `当前账号：${email}` : '演示模式'}</p>
 
-        <form onSubmit={savePassword} className="mt-5 space-y-3">
-          <p className="text-[13px] font-medium text-ink-soft">
-            登录密码（手机 App 里用密码登录，无需等邮件）
-          </p>
-          <input
-            type="password"
-            autoComplete="new-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="新密码（至少 6 位）"
-            className="w-full rounded-xl border border-hairline bg-paper-raised px-4 py-3 text-[15px] outline-none focus:border-seal"
-          />
-          <input
-            type="password"
-            autoComplete="new-password"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            placeholder="再输一遍"
-            className="w-full rounded-xl border border-hairline bg-paper-raised px-4 py-3 text-[15px] outline-none focus:border-seal"
-          />
-          <button
-            type="submit"
-            disabled={busy || !password}
-            className="w-full rounded-xl bg-ink py-3 text-sm font-semibold text-paper disabled:opacity-50"
-          >
-            {busy ? '保存中…' : '保存密码'}
-          </button>
-        </form>
+        {isConfigured && (
+          <form onSubmit={savePassword} className="mt-5 space-y-3">
+            <p className="text-[13px] font-medium text-ink-soft">
+              登录密码（手机 App 里用密码登录，无需等邮件）
+            </p>
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="新密码（至少 6 位）"
+              className="w-full rounded-xl border border-hairline bg-paper-raised px-4 py-3 text-[15px] outline-none focus:border-seal"
+            />
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              placeholder="再输一遍"
+              className="w-full rounded-xl border border-hairline bg-paper-raised px-4 py-3 text-[15px] outline-none focus:border-seal"
+            />
+            <button
+              type="submit"
+              disabled={busy || !password}
+              className="w-full rounded-xl bg-ink py-3 text-sm font-semibold text-paper disabled:opacity-50"
+            >
+              {busy ? '保存中…' : '保存密码'}
+            </button>
+          </form>
+        )}
 
         <div className="mt-6 space-y-3 border-t border-hairline pt-5">
           <p className="text-[13px] font-medium text-ink-soft">导出数据（CSV，可用 Excel 打开）</p>
@@ -163,12 +180,33 @@ export default function Settings({
           </div>
         </div>
 
-        <button
-          onClick={logout}
-          className="mt-6 mb-2 w-full rounded-xl border border-hairline py-3 text-sm font-medium text-seal"
-        >
-          退出登录
-        </button>
+        <div className="mt-6 space-y-3 border-t border-hairline pt-5">
+          <p className="text-[13px] font-medium text-ink-soft">外观</p>
+          <div className="flex gap-2">
+            {THEMES.map(({ mode, label }) => (
+              <button
+                key={mode}
+                onClick={() => switchTheme(mode)}
+                className={`flex-1 rounded-xl border py-2.5 text-sm ${
+                  themeMode === mode
+                    ? 'border-seal bg-seal/5 font-semibold text-seal'
+                    : 'border-hairline bg-paper-raised font-medium text-ink-soft active:bg-hairline'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {isConfigured && (
+          <button
+            onClick={logout}
+            className="mt-6 mb-2 w-full rounded-xl border border-hairline py-3 text-sm font-medium text-seal"
+          >
+            退出登录
+          </button>
+        )}
       </div>
     </div>
   )

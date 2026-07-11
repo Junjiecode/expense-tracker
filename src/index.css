@@ -15,6 +15,24 @@
   --font-sans: -apple-system, "PingFang SC", "Noto Sans SC", "Helvetica Neue", sans-serif;
 }
 
+:root {
+  color-scheme: light;
+}
+
+/* 深色：覆写 @theme 生成的变量即可整体换肤（所有工具类都引用这些 var） */
+html[data-theme='dark'] {
+  color-scheme: dark; /* 原生 date/month 等控件跟随变深 */
+  --color-paper: #1B1B19;
+  --color-paper-raised: #252522;
+  --color-ink: #EDEBE3;
+  --color-ink-soft: #B0AEA3;
+  --color-stone: #8A8A82;
+  --color-hairline: #33332E;
+  --color-seal: #D96A57;
+  --color-seal-deep: #C0392B;
+  --color-income: #4FA97E;
+}
+
 html {
   background: var(--color-paper);
 }

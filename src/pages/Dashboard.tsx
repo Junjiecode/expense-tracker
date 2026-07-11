@@ -13,7 +13,6 @@ import {
 } from 'recharts'
 import type { Category, Transaction } from '../lib/types'
 import { fetchTransactionsRange } from '../lib/db'
-import { isConfigured } from '../lib/supabase'
 import {
   WEEKDAYS,
   fmtMoney,
@@ -25,22 +24,16 @@ import {
 } from '../lib/format'
 import MonthSwitcher from '../components/MonthSwitcher'
 import Settings from '../components/Settings'
+import { useChartTheme } from '../components/charts/chartTheme'
+import type { ChartColors } from '../components/charts/chartTheme'
 
 interface Props {
   categories: Category[]
   toast: (msg: string) => void
 }
 
-// 图表用色：SVG 属性不认 CSS 变量，与 src/index.css 的 @theme 保持同步
-const C = {
-  paper: '#FAFAF7',
-  raised: '#FFFFFF',
-  ink: '#1A1A18',
-  stone: '#8A8A82',
-  hairline: '#E8E6DF',
-  seal: '#C0392B',
-  income: '#2E7D5B',
-}
+/** 「其他/未分类」的中性灰，浅深两主题通用 */
+const STONE = '#8A8A82'
 
 /** 趋势窗口：选中月及往前共 6 个月 */
 const TREND_MONTHS = 6
@@ -61,6 +54,7 @@ export default function Dashboard({ categories, toast }: Props) {
   const [reload, setReload] = useState(0)
   const [showSettings, setShowSettings] = useState(false)
   const [currency, setCurrencyView] = useState(getCurrency())
+  const { C, catColor, tooltipStyle } = useChartTheme()
   const catMap = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories])
 
   useEffect(() => {
@@ -109,7 +103,7 @@ export default function Dashboard({ categories, toast }: Props) {
           id,
           name: cat?.name ?? '未分类',
           icon: cat?.icon ?? '❓',
-          color: cat?.color ?? C.stone,
+          color: cat?.color ?? STONE,
           value,
         }
       })
@@ -121,7 +115,7 @@ export default function Dashboard({ categories, toast }: Props) {
     if (byCategory.length <= MAX_PIE_SLICES) return byCategory
     const top = byCategory.slice(0, MAX_PIE_SLICES - 1)
     const rest = byCategory.slice(MAX_PIE_SLICES - 1).reduce((s, c) => s + c.value, 0)
-    return [...top, { id: 'fold', name: '其他', icon: '', color: C.stone, value: rest }]
+    return [...top, { id: 'fold', name: '其他', icon: '', color: STONE, value: rest }]
   }, [byCategory])
 
   // 每日支出
@@ -166,18 +160,16 @@ export default function Dashboard({ categories, toast }: Props) {
     <div className="px-4 pt-safe">
       <div className="relative pt-3">
         <MonthSwitcher month={month} onChange={setMonth} />
-        {isConfigured && (
-          <button
-            onClick={() => setShowSettings(true)}
-            aria-label="设置"
-            className="absolute right-0 top-1/2 mt-1.5 -translate-y-1/2 p-2 text-stone active:text-ink"
-          >
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.56-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.08a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.08a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1.03Z" />
-            </svg>
-          </button>
-        )}
+        <button
+          onClick={() => setShowSettings(true)}
+          aria-label="设置"
+          className="absolute right-0 top-1/2 mt-1.5 -translate-y-1/2 p-2 text-stone active:text-ink"
+        >
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.56-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.08a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.08a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1.03Z" />
+          </svg>
+        </button>
       </div>
       {showSettings && (
         <Settings
@@ -268,7 +260,7 @@ export default function Dashboard({ categories, toast }: Props) {
                       isAnimationActive={false}
                     >
                       {pieData.map((c) => (
-                        <Cell key={c.id} fill={c.color} />
+                        <Cell key={c.id} fill={catColor(c.color)} />
                       ))}
                     </Pie>
                     <Tooltip
@@ -300,7 +292,7 @@ export default function Dashboard({ categories, toast }: Props) {
                       <span className="relative h-2 flex-1 overflow-hidden rounded-full bg-hairline/60">
                         <span
                           className="absolute inset-y-0 left-0 rounded-full"
-                          style={{ width: `${pct}%`, backgroundColor: c.color }}
+                          style={{ width: `${pct}%`, backgroundColor: catColor(c.color) }}
                         />
                       </span>
                       <span className="num w-10 shrink-0 text-right text-xs text-stone">
@@ -398,7 +390,7 @@ export default function Dashboard({ categories, toast }: Props) {
                   <YAxis hide />
                   <Tooltip
                     cursor={{ fill: C.hairline, opacity: 0.4 }}
-                    content={<TrendTooltip currency={currency} />}
+                    content={<TrendTooltip currency={currency} c={C} tooltipStyle={tooltipStyle} />}
                   />
                   <Bar
                     dataKey="expense"
@@ -437,10 +429,14 @@ function TrendTooltip({
   active,
   payload,
   currency,
+  c,
+  tooltipStyle,
 }: {
   active?: boolean
   payload?: { payload: { month: string; expense: number; income: number } }[]
   currency: string
+  c: ChartColors
+  tooltipStyle: React.CSSProperties
 }) {
   if (!active || !payload?.length) return null
   const d = payload[0].payload
@@ -449,26 +445,16 @@ function TrendTooltip({
     <div style={tooltipStyle}>
       <p className="font-medium">{fmtMonth(d.month)}</p>
       <p className="num mt-1 flex items-center gap-1.5">
-        <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: C.seal }} />
+        <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: c.seal }} />
         支出 {currency}{fmtMoney(d.expense)}
       </p>
       <p className="num mt-0.5 flex items-center gap-1.5">
-        <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: C.income }} />
+        <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: c.income }} />
         收入 {currency}{fmtMoney(d.income)}
       </p>
-      <p className="num mt-1 border-t pt-1" style={{ borderColor: C.hairline }}>
+      <p className="num mt-1 border-t pt-1" style={{ borderColor: c.hairline }}>
         结余 {balance >= 0 ? '+' : '−'}{currency}{fmtMoney(Math.abs(balance))}
       </p>
     </div>
   )
-}
-
-const tooltipStyle: React.CSSProperties = {
-  background: C.raised,
-  border: `1px solid ${C.hairline}`,
-  borderRadius: 10,
-  fontSize: 12,
-  color: C.ink,
-  boxShadow: '0 4px 12px rgba(26, 26, 24, 0.08)',
-  padding: '6px 10px',
 }

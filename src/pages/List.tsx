@@ -214,7 +214,7 @@ function EditSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-30 flex items-end justify-center bg-ink/40" onClick={onClose}>
+    <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/40" onClick={onClose}>
       <div
         className="w-full max-w-lg rounded-t-2xl bg-paper p-5 pb-safe"
         onClick={(e) => e.stopPropagation()}

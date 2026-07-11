@@ -274,7 +274,7 @@ export default function Import({ categories, toast }: Props) {
               type="checkbox"
               checked={mapping.hasHeader}
               onChange={(e) => set({ hasHeader: e.target.checked })}
-              className="h-4 w-4 accent-[#C0392B]"
+              className="h-4 w-4 accent-seal"
             />
             首行是标题行
           </label>
@@ -334,7 +334,7 @@ export default function Import({ categories, toast }: Props) {
                 checked={r.included}
                 disabled={r.duplicate}
                 onChange={(e) => updateRow(r.key, { included: e.target.checked })}
-                className="h-4 w-4 shrink-0 accent-[#C0392B]"
+                className="h-4 w-4 shrink-0 accent-seal"
               />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm">{r.description || '（无描述）'}</p>
