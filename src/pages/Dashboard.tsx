@@ -57,16 +57,30 @@ export default function Dashboard({ categories, toast }: Props) {
   const [month, setMonth] = useState(monthKey())
   const [rangeTxs, setRangeTxs] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [reload, setReload] = useState(0)
   const [showSettings, setShowSettings] = useState(false)
   const [currency, setCurrencyView] = useState(getCurrency())
   const catMap = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories])
 
   useEffect(() => {
+    let stale = false // 快速切月时丢弃过期响应
     setLoading(true)
+    setError(null)
     fetchTransactionsRange(monthsAgo(month, TREND_MONTHS - 1), month)
-      .then(setRangeTxs)
-      .finally(() => setLoading(false))
-  }, [month])
+      .then((d) => {
+        if (!stale) setRangeTxs(d)
+      })
+      .catch((e) => {
+        if (!stale) setError((e as Error).message)
+      })
+      .finally(() => {
+        if (!stale) setLoading(false)
+      })
+    return () => {
+      stale = true
+    }
+  }, [month, reload])
 
   const txs = useMemo(() => rangeTxs.filter((t) => t.date.startsWith(month)), [rangeTxs, month])
   const expenses = useMemo(() => txs.filter((t) => t.type === 'expense'), [txs])
@@ -176,6 +190,17 @@ export default function Dashboard({ categories, toast }: Props) {
 
       {loading ? (
         <p className="py-16 text-center text-sm text-stone">加载中…</p>
+      ) : error ? (
+        <div className="py-20 text-center">
+          <p className="text-4xl">📡</p>
+          <p className="mt-3 text-sm text-stone">加载失败：{error}</p>
+          <button
+            onClick={() => setReload((n) => n + 1)}
+            className="mt-4 rounded-xl border border-hairline bg-paper-raised px-5 py-2 text-sm font-medium active:bg-hairline/40"
+          >
+            重试
+          </button>
+        </div>
       ) : txs.length === 0 ? (
         <div className="py-20 text-center">
           <p className="text-4xl">🧮</p>

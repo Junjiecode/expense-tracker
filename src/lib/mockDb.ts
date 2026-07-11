@@ -131,6 +131,8 @@ export const mock = {
     return [...rules]
   },
   async saveRule(keyword: string, categoryId: string): Promise<void> {
-    rules.push({ id: `rule-${rules.length}`, user_id: UID, keyword, category_id: categoryId })
+    const existing = rules.find((r) => r.keyword === keyword)
+    if (existing) existing.category_id = categoryId
+    else rules.push({ id: `rule-${rules.length}`, user_id: UID, keyword, category_id: categoryId })
   },
 }

@@ -115,9 +115,13 @@ export async function fetchRules(): Promise<CategoryRule[]> {
 export async function saveRule(keyword: string, categoryId: string): Promise<void> {
   if (demoEnabled()) return mock.saveRule(keyword, categoryId)
   const { data: userData } = await supabase.auth.getUser()
+  // 同关键词重选分类时更新为最新意图（依赖 002 迁移的唯一约束）
   const { error } = await supabase
     .from('category_rules')
-    .insert({ user_id: userData.user!.id, keyword, category_id: categoryId })
+    .upsert(
+      { user_id: userData.user!.id, keyword, category_id: categoryId },
+      { onConflict: 'user_id,keyword' },
+    )
   if (error) throw error
 }
 

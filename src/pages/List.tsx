@@ -182,6 +182,7 @@ function EditSheet({
   async function save() {
     const value = parseFloat(amount)
     if (!value || value <= 0) return toast('金额无效')
+    if (!categoryId) return toast('选一个分类')
     setBusy(true)
     try {
       await updateTransaction(tx.id, {
@@ -225,7 +226,12 @@ function EditSheet({
             {(['expense', 'income'] as TxType[]).map((t) => (
               <button
                 key={t}
-                onClick={() => setType(t)}
+                onClick={() => {
+                  if (t !== type) {
+                    setType(t)
+                    setCategoryId(null) // 支出/收入分类不通用，切换后必须重选
+                  }
+                }}
                 className={`rounded-full px-3.5 py-1 text-xs ${
                   type === t
                     ? t === 'expense'
@@ -239,10 +245,14 @@ function EditSheet({
             ))}
           </div>
           <input
-            type="number"
+            type="text"
             inputMode="decimal"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            onChange={(e) => {
+              const v = e.target.value
+              // 与记一笔的键盘同规则：最多 8 位整数 + 2 位小数
+              if (v === '' || /^\d{1,8}(\.\d{0,2})?$/.test(v)) setAmount(v)
+            }}
             className="num flex-1 rounded-lg border border-hairline bg-paper-raised px-3 py-2 text-right text-lg font-semibold outline-none focus:border-seal"
           />
         </div>

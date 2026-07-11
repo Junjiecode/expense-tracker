@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase, isConfigured } from './lib/supabase'
 import { fetchCategories } from './lib/db'
@@ -52,18 +52,31 @@ function AuthGate() {
 function Shell() {
   const [tab, setTab] = useState<Tab>('add')
   const [categories, setCategories] = useState<Category[]>([])
+  const [catError, setCatError] = useState(false)
   const { toast, message } = useToast()
 
-  useEffect(() => {
+  const loadCategories = useCallback(() => {
+    setCatError(false)
     fetchCategories()
       .then(setCategories)
-      .catch((e) => toast(`加载分类失败：${e.message}`))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      .catch(() => setCatError(true))
   }, [])
+
+  useEffect(() => {
+    loadCategories()
+  }, [loadCategories])
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col">
       <main className="flex-1 pb-24">
+        {catError && (
+          <div className="mx-4 mt-3 flex items-center justify-between rounded-xl border border-seal/30 bg-seal/5 px-4 py-2.5 text-sm text-seal">
+            分类加载失败
+            <button onClick={loadCategories} className="font-semibold">
+              重试
+            </button>
+          </div>
+        )}
         <Suspense fallback={<p className="py-16 text-center text-sm text-stone">加载中…</p>}>
           {tab === 'add' && <Add categories={categories} toast={toast} />}
           {tab === 'list' && <List categories={categories} toast={toast} />}
