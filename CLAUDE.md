@@ -33,8 +33,9 @@ Supabase Auth 配置：Site URL = 生产地址；Redirect URLs 含 `http://local
 
 - `src/pages/` — 四个 tab 页：Add（记一笔）/ List（账单）/ Import（CSV 导入）/ Dashboard（分析），由 `App.tsx` 里的 state 切换
 - `src/pages/Login.tsx` — 密码优先登录，magic link 作 fallback
-- `src/components/Settings.tsx` — 分析页右上角齿轮弹出：设置密码、CSV 导出、固定收支模板、货币、外观（主题）、退出登录；演示模式下也可打开（账号相关区块隐藏）
+- `src/components/Settings.tsx` — 分析页右上角齿轮弹出：设置密码、CSV 导出、固定收支模板、分类管理、货币、外观（主题）、退出登录；演示模式下也可打开（账号相关区块隐藏）
 - `src/components/Recurring.tsx` + `src/lib/recurring.ts` — 固定收支模板（v1.4）：设置面板里增删改模板项（名称/金额/分类/每月几号），「记入本月」弹确认单生成当月真实账目；嵌套弹层用 z-40（设置面板是 z-30）
+- `src/components/CategoryManager.tsx` — 分类管理（v1.5）：设置面板里增删改分类（名称/emoji 图标/颜色/类型），颜色只能从 11 个已校验种子色里选（不开自由取色，深色映射才有对应）；删除分类靠 FK：账目 set null 变未分类、规则级联删除，无迁移；分类变更经 `onCategoriesChange` 一路回传到 App 的 `loadCategories` 刷新全局
 - `src/lib/db.ts` — 所有 Supabase 读写都走这里，不要在组件里直接调 supabase.from()；演示模式时自动切到 `mockDb.ts`（内存假数据，仅在未配置 Supabase 时生效）
 - `src/lib/format.ts` — 金额/日期格式化；日期一律用本地时区 `todayStr()`，禁止 `toISOString().slice(0,10)`（会跳 UTC 日期）
 - `src/lib/export.ts` — CSV 导出（BOM + 转义 + Blob 下载）；入口在设置面板（全部/按月）和账单页头部（当月）
@@ -68,4 +69,4 @@ Supabase Auth 配置：Site URL = 生产地址；Redirect URLs 含 `http://local
 
 ## 可能的后续方向（用户未确认，仅备忘）
 
-预算提醒、多币种、分类管理（增删改自定义分类）、规则管理（查看/删除自动分类规则）、离线支持（目前 SW 只缓存壳，数据在线才有）
+预算提醒、多币种、规则管理（查看/删除自动分类规则）、离线支持（目前 SW 只缓存壳，数据在线才有）
