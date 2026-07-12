@@ -1,0 +1,48 @@
+# 每月 1 号自动把全部账目导出为 CSV，提交到 backups 分支留档
+# 手动测试：Actions 页面选 monthly-backup → Run workflow，或 `gh workflow run monthly-backup`
+name: monthly-backup
+
+on:
+  schedule:
+    - cron: '30 3 1 * *' # 每月 1 号 03:30 UTC（欧洲清晨）
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 安装依赖（仅运行时）
+        run: npm ci --omit=dev --ignore-scripts
+
+      - name: 导出 CSV
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          BACKUP_EMAIL: ${{ secrets.BACKUP_EMAIL }}
+          BACKUP_PASSWORD: ${{ secrets.BACKUP_PASSWORD }}
+        run: node scripts/backup.mjs /tmp/backup.csv
+
+      - name: 提交到 backups 分支
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch origin backups; then
+            git switch backups
+          else
+            git switch --orphan backups
+          fi
+          STAMP=$(date -u +%Y-%m-%d)
+          mkdir -p monthly
+          cp /tmp/backup.csv "monthly/backup-${STAMP}.csv"
+          git add monthly
+          git commit -m "backup ${STAMP}"
+          git push origin backups
