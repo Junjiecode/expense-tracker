@@ -42,6 +42,7 @@ Supabase Auth 配置：Site URL = 生产地址；Redirect URLs 含 `http://local
 - `src/lib/theme.ts` — 深色模式：localStorage `theme` 键（缺省跟随系统），`html[data-theme]` 驱动 index.css 里的变量覆写；`index.html` 有首帧防闪内联脚本
 - `src/components/charts/` — 分析页图表组件与 `chartTheme.ts`（图表 SVG 不认 CSS 变量，浅/深两组 hex 在这里，与 index.css 保持同步；分类色深色映射表也在这里）
 - `supabase/migrations/` — 建表 SQL；改表结构时新增编号文件（004_xxx.sql），去 Supabase Dashboard → SQL Editor 手动执行，不改旧文件（001–003 均已执行）
+- `scripts/backup.mjs` + `.github/workflows/backup.yml` — 月度自动备份：每月 1 号 03:30 UTC 用密码登录（走 RLS，4 个 GitHub Secrets：SUPABASE_URL / SUPABASE_ANON_KEY / BACKUP_EMAIL / BACKUP_PASSWORD）导出全部账目 CSV，提交到 `backups` 分支 `monthly/` 下；vercel.json 已禁用该分支的部署；CSV 列格式与 `src/lib/export.ts` 保持一致；手动测试 `gh workflow run monthly-backup`。注意 GitHub 会停用 60 天无活动仓库的定时任务（备份自身的月度提交即算活动，正常自续）
 
 ## 数据约定
 
