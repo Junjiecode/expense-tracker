@@ -121,17 +121,27 @@ export default function Dashboard({ categories, toast }: Props) {
     return [...top, { id: 'fold', name: '其他', icon: '', color: STONE, value: rest }]
   }, [byCategory])
 
-  // 每日支出
+  // 每日支出（附当日分类明细，tooltip 用）
   const daily = useMemo(() => {
     const [y, m] = month.split('-').map(Number)
     const days = new Date(y, m, 0).getDate()
-    const arr = Array.from({ length: days }, (_, i) => ({ day: i + 1, value: 0 }))
+    const sums = Array.from({ length: days }, () => new Map<string, number>())
     for (const t of expenses) {
-      const d = Number(t.date.slice(8, 10))
-      arr[d - 1].value += t.amount
+      const byCat = sums[Number(t.date.slice(8, 10)) - 1]
+      const key = t.category_id ?? 'uncat'
+      byCat.set(key, (byCat.get(key) ?? 0) + t.amount)
     }
-    return arr
-  }, [expenses, month])
+    return sums.map((byCat, i) => ({
+      day: i + 1,
+      value: [...byCat.values()].reduce((s, v) => s + v, 0),
+      breakdown: [...byCat.entries()]
+        .map(([id, amount]) => {
+          const cat = catMap.get(id)
+          return { id, icon: cat?.icon ?? '❓', name: cat?.name ?? '未分类', amount }
+        })
+        .sort((a, b) => b.amount - a.amount),
+    }))
+  }, [expenses, month, catMap])
 
   // 日均支出：当前月按已过天数，历史月按整月天数
   const elapsedDays = month === monthKey() ? Number(todayStr().slice(8, 10)) : daily.length
@@ -330,13 +340,9 @@ export default function Dashboard({ categories, toast }: Props) {
                   <YAxis hide />
                   <Tooltip
                     cursor={{ fill: C.hairline, opacity: 0.4 }}
-                    formatter={(v) => [`${currency}${fmtMoney(Number(v))}`, '支出']}
-                    labelFormatter={(d) => {
-                      const [y, m] = month.split('-').map(Number)
-                      const weekday = WEEKDAYS[new Date(y, m - 1, Number(d)).getDay()]
-                      return `${m}月${d}日 周${weekday}`
-                    }}
-                    contentStyle={tooltipStyle}
+                    content={
+                      <DailyTooltip month={month} currency={currency} c={C} tooltipStyle={tooltipStyle} />
+                    }
                   />
                   {dailyAvg > 0 && (
                     <ReferenceLine
@@ -438,6 +444,66 @@ export default function Dashboard({ categories, toast }: Props) {
           />
         </div>
       )}
+    </div>
+  )
+}
+
+/** tooltip 明细最多列几类，超出折叠成「其他」 */
+const MAX_TOOLTIP_ROWS = 5
+
+function DailyTooltip({
+  active,
+  payload,
+  month,
+  currency,
+  c,
+  tooltipStyle,
+}: {
+  active?: boolean
+  payload?: {
+    payload: {
+      day: number
+      value: number
+      breakdown: { id: string; icon: string; name: string; amount: number }[]
+    }
+  }[]
+  month: string
+  currency: string
+  c: ChartColors
+  tooltipStyle: React.CSSProperties
+}) {
+  if (!active || !payload?.length) return null
+  const d = payload[0].payload
+  if (d.value <= 0) return null // 没花钱的天不弹
+  const [y, m] = month.split('-').map(Number)
+  const weekday = WEEKDAYS[new Date(y, m - 1, d.day).getDay()]
+  const shown = d.breakdown.slice(0, MAX_TOOLTIP_ROWS)
+  const rest = d.breakdown.slice(MAX_TOOLTIP_ROWS).reduce((s, b) => s + b.amount, 0)
+  return (
+    <div style={tooltipStyle}>
+      <p className="font-medium">
+        {m}月{d.day}日 周{weekday}
+      </p>
+      <p className="num mt-0.5">
+        支出 {currency}
+        {fmtMoney(d.value)}
+      </p>
+      <div className="mt-1 space-y-0.5 border-t pt-1" style={{ borderColor: c.hairline }}>
+        {shown.map((b) => (
+          <p key={b.id} className="flex items-center justify-between gap-4">
+            <span>
+              {b.icon} {b.name}
+            </span>
+            <span className="num">{fmtMoney(b.amount)}</span>
+          </p>
+        ))}
+        {rest > 0 && (
+          <p className="flex items-center justify-between gap-4">
+            <span>… 其他</span>
+            <span className="num">{fmtMoney(rest)}</span>
+          </p>
+        )}
+      </div>
     </div>
   )
 }
