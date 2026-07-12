@@ -33,13 +33,14 @@ Supabase Auth 配置：Site URL = 生产地址；Redirect URLs 含 `http://local
 
 - `src/pages/` — 四个 tab 页：Add（记一笔）/ List（账单）/ Import（CSV 导入）/ Dashboard（分析），由 `App.tsx` 里的 state 切换
 - `src/pages/Login.tsx` — 密码优先登录，magic link 作 fallback
-- `src/components/Settings.tsx` — 分析页右上角齿轮弹出：设置密码、CSV 导出、货币、外观（主题）、退出登录；演示模式下也可打开（账号相关区块隐藏）
+- `src/components/Settings.tsx` — 分析页右上角齿轮弹出：设置密码、CSV 导出、固定收支模板、货币、外观（主题）、退出登录；演示模式下也可打开（账号相关区块隐藏）
+- `src/components/Recurring.tsx` + `src/lib/recurring.ts` — 固定收支模板（v1.4）：设置面板里增删改模板项（名称/金额/分类/每月几号），「记入本月」弹确认单生成当月真实账目；嵌套弹层用 z-40（设置面板是 z-30）
 - `src/lib/db.ts` — 所有 Supabase 读写都走这里，不要在组件里直接调 supabase.from()；演示模式时自动切到 `mockDb.ts`（内存假数据，仅在未配置 Supabase 时生效）
 - `src/lib/format.ts` — 金额/日期格式化；日期一律用本地时区 `todayStr()`，禁止 `toISOString().slice(0,10)`（会跳 UTC 日期）
 - `src/lib/export.ts` — CSV 导出（BOM + 转义 + Blob 下载）；入口在设置面板（全部/按月）和账单页头部（当月）
 - `src/lib/theme.ts` — 深色模式：localStorage `theme` 键（缺省跟随系统），`html[data-theme]` 驱动 index.css 里的变量覆写；`index.html` 有首帧防闪内联脚本
 - `src/components/charts/` — 分析页图表组件与 `chartTheme.ts`（图表 SVG 不认 CSS 变量，浅/深两组 hex 在这里，与 index.css 保持同步；分类色深色映射表也在这里）
-- `supabase/migrations/` — 建表 SQL；改表结构时新增编号文件（002_xxx.sql），去 Supabase Dashboard → SQL Editor 手动执行，不改旧文件（001、002 均已执行）
+- `supabase/migrations/` — 建表 SQL；改表结构时新增编号文件（004_xxx.sql），去 Supabase Dashboard → SQL Editor 手动执行，不改旧文件（001–003 均已执行）
 
 ## 数据约定
 
@@ -47,6 +48,7 @@ Supabase Auth 配置：Site URL = 生产地址；Redirect URLs 含 `http://local
 - CSV 导入去重靠 `import_hash = sha256(date|amount|type|description)`，同文件内重复行追加序号；`(user_id, import_hash)` 有唯一部分索引兜底
 - `category_rules` 按关键词包含匹配给导入行自动分类，最长关键词优先；导入时用户手动指定的分类会自动沉淀为规则；`(user_id, keyword)` 唯一，`saveRule` 用 upsert（冲突更新为最新分类）
 - CSV 列映射按表头签名存 localStorage（`csv-mappings`），同一银行第二次导入免配置
+- 固定收支记入的账目是普通 manual 账目（不加新 source），幂等靠 `import_hash = 'rec:{item_id}:{YYYY-MM}'` + 既有 `(user_id, import_hash)` 唯一部分索引；`rec:` 前缀与 CSV 的 sha256 hex 天然不冲突
 - 所有表开 RLS（`auth.uid() = user_id`）；新用户注册触发器自动建 11 个默认分类
 
 ## 设计语言（中式账本）
