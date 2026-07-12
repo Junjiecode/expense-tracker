@@ -104,7 +104,23 @@ export default function Settings({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-hairline" />
-        <h2 className="text-lg font-bold">设置</h2>
+        <div className="flex items-start justify-between">
+          <h2 className="text-lg font-bold">设置</h2>
+          <button
+            onClick={onClose}
+            aria-label="关闭"
+            className="-mt-1.5 -mr-1.5 rounded-lg p-2.5 text-stone active:bg-hairline active:text-ink"
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+              <path
+                d="M4 4l10 10M14 4L4 14"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        </div>
         <p className="mt-1 text-xs text-stone">{isConfigured ? `当前账号：${email}` : '演示模式'}</p>
 
         {isConfigured && (
