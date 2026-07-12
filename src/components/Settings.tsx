@@ -7,6 +7,7 @@ import type { Currency } from '../lib/format'
 import { getThemeMode, setThemeMode } from '../lib/theme'
 import type { ThemeMode } from '../lib/theme'
 import type { Category } from '../lib/types'
+import RecurringSection from './Recurring'
 
 const CURRENCIES: { symbol: Currency; label: string }[] = [
   { symbol: '€', label: '欧元' },
@@ -24,11 +25,14 @@ export default function Settings({
   toast,
   categories,
   onCurrencyChange,
+  onDataChange,
 }: {
   onClose: () => void
   toast: (msg: string) => void
   categories: Category[]
   onCurrencyChange?: (c: Currency) => void
+  /** 固定收支记入账目后通知外层刷新 */
+  onDataChange?: () => void
 }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -159,6 +163,10 @@ export default function Settings({
           >
             {exporting ? '导出中…' : '导出全部账目'}
           </button>
+        </div>
+
+        <div className="mt-6 border-t border-hairline pt-5">
+          <RecurringSection categories={categories} toast={toast} onDataChange={onDataChange} />
         </div>
 
         <div className="mt-6 space-y-3 border-t border-hairline pt-5">

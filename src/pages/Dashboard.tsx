@@ -190,6 +190,7 @@ export default function Dashboard({ categories, toast }: Props) {
           toast={toast}
           categories={categories}
           onCurrencyChange={setCurrencyView}
+          onDataChange={() => setReload((n) => n + 1)}
         />
       )}
 
