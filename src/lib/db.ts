@@ -1,7 +1,14 @@
 import { supabase } from './supabase'
 import { monthRange } from './format'
 import { demoEnabled, mock } from './mockDb'
-import type { Category, CategoryRule, NewTransaction, Transaction } from './types'
+import type {
+  Category,
+  CategoryRule,
+  NewRecurringItem,
+  NewTransaction,
+  RecurringItem,
+  Transaction,
+} from './types'
 
 export async function fetchCategories(): Promise<Category[]> {
   if (demoEnabled()) return mock.fetchCategories()
@@ -122,6 +129,41 @@ export async function saveRule(keyword: string, categoryId: string): Promise<voi
       { user_id: userData.user!.id, keyword, category_id: categoryId },
       { onConflict: 'user_id,keyword' },
     )
+  if (error) throw error
+}
+
+export async function fetchRecurringItems(): Promise<RecurringItem[]> {
+  if (demoEnabled()) return mock.fetchRecurringItems()
+  const { data, error } = await supabase
+    .from('recurring_items')
+    .select('*')
+    .order('sort_order')
+    .order('created_at')
+  if (error) throw error
+  return data.map((r) => ({ ...r, amount: Number(r.amount) }))
+}
+
+export async function insertRecurringItem(item: NewRecurringItem): Promise<void> {
+  if (demoEnabled()) return mock.insertRecurringItem(item)
+  const { data: userData } = await supabase.auth.getUser()
+  const { error } = await supabase
+    .from('recurring_items')
+    .insert({ ...item, user_id: userData.user!.id })
+  if (error) throw error
+}
+
+export async function updateRecurringItem(
+  id: string,
+  patch: Partial<NewRecurringItem>,
+): Promise<void> {
+  if (demoEnabled()) return mock.updateRecurringItem(id, patch)
+  const { error } = await supabase.from('recurring_items').update(patch).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteRecurringItem(id: string): Promise<void> {
+  if (demoEnabled()) return mock.deleteRecurringItem(id)
+  const { error } = await supabase.from('recurring_items').delete().eq('id', id)
   if (error) throw error
 }
 

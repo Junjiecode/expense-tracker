@@ -1,6 +1,13 @@
 // 演示模式：无 Supabase 配置时的内存数据源，方便先体验再接后端
 import { isConfigured } from './supabase'
-import type { Category, CategoryRule, NewTransaction, Transaction } from './types'
+import type {
+  Category,
+  CategoryRule,
+  NewRecurringItem,
+  NewTransaction,
+  RecurringItem,
+  Transaction,
+} from './types'
 import { monthKey, monthRange, prevMonth, todayStr } from './format'
 
 const UID = 'demo'
@@ -80,6 +87,9 @@ function addDemoTx(date: string, amount: number, catIdx: number, note = '') {
 
 const rules: CategoryRule[] = []
 
+let nextRecId = 1
+const recurringItems: RecurringItem[] = []
+
 export const mock = {
   async fetchCategories(): Promise<Category[]> {
     return [...categories]
@@ -105,6 +115,10 @@ export const mock = {
       .map((t) => ({ ...t }))
   },
   async insertTransaction(tx: NewTransaction): Promise<void> {
+    // 镜像 transactions_import_dedup 唯一索引：同 hash 拒绝重复入账
+    if (tx.import_hash && transactions.some((t) => t.import_hash === tx.import_hash)) {
+      throw new Error('duplicate key value violates unique constraint "transactions_import_dedup"')
+    }
     transactions.push({
       ...tx,
       id: `tx-${nextId++}`,
@@ -134,5 +148,19 @@ export const mock = {
     const existing = rules.find((r) => r.keyword === keyword)
     if (existing) existing.category_id = categoryId
     else rules.push({ id: `rule-${rules.length}`, user_id: UID, keyword, category_id: categoryId })
+  },
+  async fetchRecurringItems(): Promise<RecurringItem[]> {
+    return [...recurringItems].sort((a, b) => a.sort_order - b.sort_order).map((r) => ({ ...r }))
+  },
+  async insertRecurringItem(item: NewRecurringItem): Promise<void> {
+    recurringItems.push({ ...item, id: `rec-${nextRecId++}`, user_id: UID })
+  },
+  async updateRecurringItem(id: string, patch: Partial<NewRecurringItem>): Promise<void> {
+    const r = recurringItems.find((r) => r.id === id)
+    if (r) Object.assign(r, patch)
+  },
+  async deleteRecurringItem(id: string): Promise<void> {
+    const i = recurringItems.findIndex((r) => r.id === id)
+    if (i >= 0) recurringItems.splice(i, 1)
   },
 }
