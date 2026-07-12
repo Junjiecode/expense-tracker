@@ -100,7 +100,7 @@ export default function Settings({
   return (
     <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/40" onClick={onClose}>
       <div
-        className="w-full max-w-lg rounded-t-2xl bg-paper p-5 pb-safe"
+        className="max-h-[90dvh] w-full max-w-lg overflow-y-auto overscroll-contain rounded-t-2xl bg-paper p-5 pb-safe"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-hairline" />
