@@ -33,6 +33,8 @@ import CategoryTrendChart from '../components/charts/CategoryTrendChart'
 interface Props {
   categories: Category[]
   toast: (msg: string) => void
+  /** 设置面板里分类增删改后通知 App 重新拉取分类 */
+  onCategoriesChange?: () => void
 }
 
 /** 「其他/未分类」的中性灰，浅深两主题通用 */
@@ -49,7 +51,7 @@ function monthsAgo(month: string, n: number): string {
   return m
 }
 
-export default function Dashboard({ categories, toast }: Props) {
+export default function Dashboard({ categories, toast, onCategoriesChange }: Props) {
   const [month, setMonth] = useState(monthKey())
   const [rangeTxs, setRangeTxs] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
@@ -191,6 +193,7 @@ export default function Dashboard({ categories, toast }: Props) {
           categories={categories}
           onCurrencyChange={setCurrencyView}
           onDataChange={() => setReload((n) => n + 1)}
+          onCategoriesChange={onCategoriesChange}
         />
       )}
 

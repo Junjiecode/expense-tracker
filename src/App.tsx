@@ -81,7 +81,9 @@ function Shell() {
           {tab === 'add' && <Add categories={categories} toast={toast} />}
           {tab === 'list' && <List categories={categories} toast={toast} />}
           {tab === 'import' && <Import categories={categories} toast={toast} />}
-          {tab === 'dash' && <Dashboard categories={categories} toast={toast} />}
+          {tab === 'dash' && (
+            <Dashboard categories={categories} toast={toast} onCategoriesChange={loadCategories} />
+          )}
         </Suspense>
       </main>
       <TabBar tab={tab} onChange={setTab} />

@@ -3,6 +3,7 @@ import { isConfigured } from './supabase'
 import type {
   Category,
   CategoryRule,
+  NewCategory,
   NewRecurringItem,
   NewTransaction,
   RecurringItem,
@@ -44,6 +45,8 @@ const categories: Category[] = seed.map(([name, icon, color, type], i) => ({
   type,
   sort_order: i,
 }))
+
+let nextCatId = seed.length
 
 let nextId = 1
 const transactions: Transaction[] = []
@@ -92,7 +95,22 @@ const recurringItems: RecurringItem[] = []
 
 export const mock = {
   async fetchCategories(): Promise<Category[]> {
-    return [...categories]
+    return [...categories].sort((a, b) => a.sort_order - b.sort_order).map((c) => ({ ...c }))
+  },
+  async insertCategory(cat: NewCategory): Promise<void> {
+    categories.push({ ...cat, id: `cat-${nextCatId++}`, user_id: UID })
+  },
+  async updateCategory(id: string, patch: Partial<NewCategory>): Promise<void> {
+    const c = categories.find((c) => c.id === id)
+    if (c) Object.assign(c, patch)
+  },
+  async deleteCategory(id: string): Promise<void> {
+    const i = categories.findIndex((c) => c.id === id)
+    if (i < 0) return
+    categories.splice(i, 1)
+    // 镜像 DB 外键行为：账目 set null，规则级联删除
+    for (const t of transactions) if (t.category_id === id) t.category_id = null
+    for (let j = rules.length - 1; j >= 0; j--) if (rules[j].category_id === id) rules.splice(j, 1)
   },
   async fetchTransactions(month: string): Promise<Transaction[]> {
     const [start, end] = monthRange(month)

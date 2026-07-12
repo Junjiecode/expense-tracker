@@ -4,6 +4,7 @@ import { demoEnabled, mock } from './mockDb'
 import type {
   Category,
   CategoryRule,
+  NewCategory,
   NewRecurringItem,
   NewTransaction,
   RecurringItem,
@@ -18,6 +19,28 @@ export async function fetchCategories(): Promise<Category[]> {
     .order('sort_order')
   if (error) throw error
   return data
+}
+
+export async function insertCategory(cat: NewCategory): Promise<void> {
+  if (demoEnabled()) return mock.insertCategory(cat)
+  const { data: userData } = await supabase.auth.getUser()
+  const { error } = await supabase
+    .from('categories')
+    .insert({ ...cat, user_id: userData.user!.id })
+  if (error) throw error
+}
+
+export async function updateCategory(id: string, patch: Partial<NewCategory>): Promise<void> {
+  if (demoEnabled()) return mock.updateCategory(id, patch)
+  const { error } = await supabase.from('categories').update(patch).eq('id', id)
+  if (error) throw error
+}
+
+/** 删除分类：账目由 FK set null 变未分类，自动分类规则级联删除 */
+export async function deleteCategory(id: string): Promise<void> {
+  if (demoEnabled()) return mock.deleteCategory(id)
+  const { error } = await supabase.from('categories').delete().eq('id', id)
+  if (error) throw error
 }
 
 export async function fetchTransactions(month: string): Promise<Transaction[]> {

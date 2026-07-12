@@ -10,6 +10,8 @@ export interface Category {
   sort_order: number
 }
 
+export type NewCategory = Omit<Category, 'id' | 'user_id'>
+
 export interface Transaction {
   id: string
   user_id: string
