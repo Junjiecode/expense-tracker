@@ -386,7 +386,7 @@ function RecurringPostSheet({
     try {
       await insertTransactions(
         selected.map((r) =>
-          buildRecurringTx(r.item, month, { amount: parseFloat(r.amount), date: r.date }),
+          buildRecurringTx(r.item, month, getCurrency(), { amount: parseFloat(r.amount), date: r.date }),
         ),
       )
       toast(`已记入 ${selected.length} 笔`)

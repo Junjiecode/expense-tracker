@@ -10,6 +10,7 @@ import type {
   Transaction,
 } from './types'
 import { monthKey, monthRange, prevMonth, todayStr } from './format'
+import type { Currency } from './format'
 
 const UID = 'demo'
 
@@ -51,12 +52,13 @@ let nextCatId = seed.length
 let nextId = 1
 const transactions: Transaction[] = []
 
-function addDemoTx(date: string, amount: number, catIdx: number, note = '') {
+function addDemoTx(date: string, amount: number, catIdx: number, note = '', currency: Currency = '€') {
   transactions.push({
     id: `tx-${nextId++}`,
     user_id: UID,
     date,
     amount,
+    currency,
     type: categories[catIdx].type,
     description: '',
     category_id: categories[catIdx].id,
@@ -70,18 +72,18 @@ function addDemoTx(date: string, amount: number, catIdx: number, note = '') {
 // 造六个月的演示数据（趋势图需要），金额按月乘确定性起伏系数
 {
   const today = Number(todayStr().slice(8, 10))
-  const samples: [number, number, number, string][] = [
+  const samples: [number, number, number, string, Currency?][] = [
     [1, 32.5, 0, '早餐'], [1, 8, 1, '地铁'], [2, 128, 2, ''], [3, 45.8, 0, '午饭'],
     [4, 15.9, 3, '洗衣液'], [5, 2200, 4, '房租'], [6, 68, 5, '电影'], [7, 25, 0, ''],
-    [8, 9.9, 7, '视频会员'], [9, 88, 0, '聚餐'], [10, 12, 1, ''], [11, 199, 2, '球鞋'],
+    [8, 9.9, 7, '视频会员'], [9, 288, 0, '国内聚餐', '¥'], [10, 12, 1, ''], [11, 599, 2, '淘宝球鞋', '¥'],
     [12, 36, 0, ''], [13, 50, 6, '感冒药'], [14, 20, 1, '打车'],
   ]
   const factors = [1, 1.15, 0.85, 1.3, 0.95, 1.1]
   let m = monthKey()
   for (let i = 0; i < 6; i++) {
-    for (const [day, amt, cat, note] of samples) {
+    for (const [day, amt, cat, note, cur] of samples) {
       if (i === 0 && day > today) continue
-      addDemoTx(`${m}-${String(day).padStart(2, '0')}`, Math.round(amt * factors[i] * 100) / 100, cat, note)
+      addDemoTx(`${m}-${String(day).padStart(2, '0')}`, Math.round(amt * factors[i] * 100) / 100, cat, note, cur)
     }
     addDemoTx(`${m}-01`, 12000, 9, '月薪')
     m = prevMonth(m)

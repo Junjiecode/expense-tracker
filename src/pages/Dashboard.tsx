@@ -15,9 +15,11 @@ import type { Category, Transaction } from '../lib/types'
 import { fetchTransactionsRange } from '../lib/db'
 import {
   WEEKDAYS,
+  convert,
   fmtMoney,
   fmtMonth,
   getCurrency,
+  getRate,
   monthKey,
   prevMonth,
   todayStr,
@@ -59,6 +61,7 @@ export default function Dashboard({ categories, toast, onCategoriesChange }: Pro
   const [reload, setReload] = useState(0)
   const [showSettings, setShowSettings] = useState(false)
   const [currency, setCurrencyView] = useState(getCurrency())
+  const [rate, setRateView] = useState(getRate())
   const { C, catColor, tooltipStyle } = useChartTheme()
   const catMap = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories])
 
@@ -81,16 +84,27 @@ export default function Dashboard({ categories, toast, onCategoriesChange }: Pro
     }
   }, [month, reload])
 
-  const txs = useMemo(() => rangeTxs.filter((t) => t.date.startsWith(month)), [rangeTxs, month])
+  // 统一折算成显示币种，下游聚合与图表全部消费已折算数据
+  const convTxs = useMemo(
+    () =>
+      rangeTxs.map((t) =>
+        t.currency === currency
+          ? t
+          : { ...t, amount: convert(t.amount, t.currency, currency, rate), currency },
+      ),
+    [rangeTxs, currency, rate],
+  )
+
+  const txs = useMemo(() => convTxs.filter((t) => t.date.startsWith(month)), [convTxs, month])
   const expenses = useMemo(() => txs.filter((t) => t.type === 'expense'), [txs])
   const totalExpense = expenses.reduce((s, t) => s + t.amount, 0)
   const totalIncome = txs.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0)
   const prevExpense = useMemo(() => {
     const pm = prevMonth(month)
-    return rangeTxs
+    return convTxs
       .filter((t) => t.date.startsWith(pm) && t.type === 'expense')
       .reduce((s, t) => s + t.amount, 0)
-  }, [rangeTxs, month])
+  }, [convTxs, month])
   const momPct = prevExpense > 0 ? ((totalExpense - prevExpense) / prevExpense) * 100 : null
   const balance = totalIncome - totalExpense
 
@@ -155,7 +169,7 @@ export default function Dashboard({ categories, toast, onCategoriesChange }: Pro
       monthsAgo(month, TREND_MONTHS - 1 - i),
     )
     const sums = new Map(months.map((m) => [m, { expense: 0, income: 0 }]))
-    for (const t of rangeTxs) {
+    for (const t of convTxs) {
       const s = sums.get(t.date.slice(0, 7))
       if (s) s[t.type] += t.amount
     }
@@ -164,7 +178,7 @@ export default function Dashboard({ categories, toast, onCategoriesChange }: Pro
       label: `${Number(m.slice(5))}月`,
       ...sums.get(m)!,
     }))
-  }, [rangeTxs, month])
+  }, [convTxs, month])
 
   function jumpToTrendMonth(index: number) {
     const m = trend[index]?.month
@@ -192,6 +206,7 @@ export default function Dashboard({ categories, toast, onCategoriesChange }: Pro
           toast={toast}
           categories={categories}
           onCurrencyChange={setCurrencyView}
+          onRateChange={setRateView}
           onDataChange={() => setReload((n) => n + 1)}
           onCategoriesChange={onCategoriesChange}
         />
@@ -260,7 +275,7 @@ export default function Dashboard({ categories, toast, onCategoriesChange }: Pro
           </section>
 
           {/* 支出节奏：逐日累计 vs 上月同期 */}
-          <CumulativeChart rangeTxs={rangeTxs} month={month} currency={currency} />
+          <CumulativeChart rangeTxs={convTxs} month={month} currency={currency} />
 
           {/* 分类占比 */}
           {byCategory.length > 0 && (
@@ -441,7 +456,7 @@ export default function Dashboard({ categories, toast, onCategoriesChange }: Pro
 
           {/* 分类支出趋势 */}
           <CategoryTrendChart
-            rangeTxs={rangeTxs}
+            rangeTxs={convTxs}
             months={trend.map((t) => t.month)}
             catMap={catMap}
             currency={currency}

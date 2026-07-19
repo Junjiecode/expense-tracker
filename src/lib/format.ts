@@ -2,13 +2,32 @@ export type Currency = '€' | '¥'
 
 const CURRENCY_KEY = 'currency'
 
-/** 全局显示币种（仅换符号，不折算金额），默认欧元 */
+/** 全局显示币种：统计/汇总折算的目标币种，默认欧元 */
 export function getCurrency(): Currency {
   return localStorage.getItem(CURRENCY_KEY) === '¥' ? '¥' : '€'
 }
 
 export function setCurrency(c: Currency): void {
   localStorage.setItem(CURRENCY_KEY, c)
+}
+
+const RATE_KEY = 'eur-cny-rate'
+const DEFAULT_RATE = 7.8
+
+/** 汇率：1€ 兑多少 ¥，设置里手动维护 */
+export function getRate(): number {
+  const n = parseFloat(localStorage.getItem(RATE_KEY) ?? '')
+  return n > 0 ? n : DEFAULT_RATE
+}
+
+export function setRate(r: number): void {
+  localStorage.setItem(RATE_KEY, String(r))
+}
+
+/** 折算金额；不做舍入，显示时再舍 */
+export function convert(amount: number, from: Currency, to: Currency, rate = getRate()): number {
+  if (from === to) return amount
+  return from === '€' ? amount * rate : amount / rate
 }
 
 export function fmtMoney(n: number): string {

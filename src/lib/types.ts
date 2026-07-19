@@ -1,3 +1,5 @@
+import type { Currency } from './format'
+
 export type TxType = 'expense' | 'income'
 
 export interface Category {
@@ -17,6 +19,7 @@ export interface Transaction {
   user_id: string
   date: string // YYYY-MM-DD
   amount: number // 始终为正数，方向由 type 决定
+  currency: Currency
   type: TxType
   description: string
   category_id: string | null
@@ -36,6 +39,7 @@ export interface CategoryRule {
 export interface NewTransaction {
   date: string
   amount: number
+  currency: Currency
   type: TxType
   description: string
   category_id: string | null

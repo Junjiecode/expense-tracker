@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import type { Category, TxType } from '../lib/types'
 import { insertTransaction } from '../lib/db'
 import { fmtDateLabel, fmtMoney, getCurrency, todayStr } from '../lib/format'
+import type { Currency } from '../lib/format'
 import CategoryGrid from '../components/CategoryGrid'
 
 interface Props {
@@ -18,7 +19,8 @@ export default function Add({ categories, toast }: Props) {
   const [stamping, setStamping] = useState(false)
   const [saving, setSaving] = useState(false)
   const dateInput = useRef<HTMLInputElement>(null)
-  const currency = getCurrency()
+  // 这笔账的币种，初始为显示币种；保存后不重置，连续记同币种更顺手
+  const [txCurrency, setTxCurrency] = useState<Currency>(getCurrency())
 
   function press(key: string) {
     setAmount((cur) => {
@@ -49,6 +51,7 @@ export default function Add({ categories, toast }: Props) {
       await insertTransaction({
         date,
         amount: value,
+        currency: txCurrency,
         type,
         description: '',
         category_id: categoryId,
@@ -56,7 +59,7 @@ export default function Add({ categories, toast }: Props) {
         source: 'manual',
         import_hash: null,
       })
-      toast(`已入账 ${currency}${fmtMoney(value)}`)
+      toast(`已入账 ${txCurrency}${fmtMoney(value)}`)
       setAmount('')
       setNote('')
       setDate(todayStr())
@@ -125,7 +128,12 @@ export default function Add({ categories, toast }: Props) {
           />
         </button>
         <div className="flex min-w-0 items-baseline gap-1">
-          <span className="text-2xl text-stone">{currency}</span>
+          <button
+            onClick={() => setTxCurrency((c) => (c === '€' ? '¥' : '€'))}
+            className="rounded-lg border-b border-dashed border-stone px-0.5 text-2xl text-stone active:text-ink"
+          >
+            {txCurrency}
+          </button>
           <span className={`num truncate text-5xl font-bold ${amount === '' ? 'text-hairline' : ''}`}>
             {displayAmount}
           </span>

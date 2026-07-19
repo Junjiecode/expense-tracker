@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase, isConfigured } from '../lib/supabase'
 import { fetchAllTransactions, fetchTransactions } from '../lib/db'
 import { exportTransactionsCsv } from '../lib/export'
-import { getCurrency, monthKey, setCurrency } from '../lib/format'
+import { getCurrency, getRate, monthKey, setCurrency, setRate } from '../lib/format'
 import type { Currency } from '../lib/format'
 import { getThemeMode, setThemeMode } from '../lib/theme'
 import type { ThemeMode } from '../lib/theme'
@@ -26,6 +26,7 @@ export default function Settings({
   toast,
   categories,
   onCurrencyChange,
+  onRateChange,
   onDataChange,
   onCategoriesChange,
 }: {
@@ -33,6 +34,8 @@ export default function Settings({
   toast: (msg: string) => void
   categories: Category[]
   onCurrencyChange?: (c: Currency) => void
+  /** 汇率修改后通知外层重新折算 */
+  onRateChange?: (r: number) => void
   /** 固定收支记入账目后通知外层刷新 */
   onDataChange?: () => void
   /** 分类增删改后通知外层重新拉取分类 */
@@ -45,12 +48,25 @@ export default function Settings({
   const [exportMonth, setExportMonth] = useState(monthKey())
   const [exporting, setExporting] = useState(false)
   const [currency, setCurrencyState] = useState(getCurrency())
+  const [rateInput, setRateInput] = useState(String(getRate()))
   const [themeMode, setThemeModeState] = useState(getThemeMode())
 
   function switchCurrency(c: Currency) {
     setCurrency(c)
     setCurrencyState(c)
     onCurrencyChange?.(c)
+  }
+
+  function commitRate() {
+    const v = parseFloat(rateInput)
+    if (v > 0) {
+      setRate(v)
+      setRateInput(String(v))
+      onRateChange?.(v)
+      toast('汇率已保存')
+    } else {
+      setRateInput(String(getRate())) // 非法输入回退到当前值
+    }
   }
 
   function switchTheme(m: ThemeMode) {
@@ -198,7 +214,7 @@ export default function Settings({
         </div>
 
         <div className="mt-6 space-y-3 border-t border-hairline pt-5">
-          <p className="text-[13px] font-medium text-ink-soft">货币符号（仅显示，不折算金额）</p>
+          <p className="text-[13px] font-medium text-ink-soft">显示货币</p>
           <div className="flex gap-2">
             {CURRENCIES.map(({ symbol, label }) => (
               <button
@@ -213,6 +229,23 @@ export default function Settings({
                 {symbol} {label}
               </button>
             ))}
+          </div>
+          <p className="text-xs text-stone">统计与汇总按下方汇率折算成显示货币；单笔账目仍显示原币种</p>
+          <div className="flex items-center gap-2 text-sm">
+            <span className="num text-ink-soft">1 € =</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={rateInput}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v === '' || /^\d{0,4}(\.\d{0,4})?$/.test(v)) setRateInput(v)
+              }}
+              onBlur={commitRate}
+              onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+              className="num w-24 rounded-xl border border-hairline bg-paper-raised px-3 py-2.5 text-right outline-none focus:border-seal"
+            />
+            <span className="num text-ink-soft">¥</span>
           </div>
         </div>
 

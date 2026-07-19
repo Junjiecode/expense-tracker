@@ -56,13 +56,14 @@ function esc(field) {
 }
 
 const catName = new Map(categories.map((c) => [c.id, c.name]))
-const rows = [['日期', '类型', '分类', '金额', '描述', '备注']]
+const rows = [['日期', '类型', '分类', '金额', '币种', '描述', '备注']]
 for (const t of txs) {
   rows.push([
     t.date,
     t.type === 'expense' ? '支出' : '收入',
     (t.category_id && catName.get(t.category_id)) || '未分类',
     Number(t.amount).toFixed(2),
+    t.currency,
     t.description,
     t.note,
   ])

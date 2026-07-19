@@ -41,12 +41,13 @@ Supabase Auth 配置：Site URL = 生产地址；Redirect URLs 含 `http://local
 - `src/lib/export.ts` — CSV 导出（BOM + 转义 + Blob 下载）；入口在设置面板（全部/按月）和账单页头部（当月）
 - `src/lib/theme.ts` — 深色模式：localStorage `theme` 键（缺省跟随系统），`html[data-theme]` 驱动 index.css 里的变量覆写；`index.html` 有首帧防闪内联脚本
 - `src/components/charts/` — 分析页图表组件与 `chartTheme.ts`（图表 SVG 不认 CSS 变量，浅/深两组 hex 在这里，与 index.css 保持同步；分类色深色映射表也在这里）
-- `supabase/migrations/` — 建表 SQL；改表结构时新增编号文件（004_xxx.sql），去 Supabase Dashboard → SQL Editor 手动执行，不改旧文件（001–003 均已执行）
+- `supabase/migrations/` — 建表 SQL；改表结构时新增编号文件（004_xxx.sql），去 Supabase Dashboard → SQL Editor 手动执行，不改旧文件（001–004 均已执行）
 - `scripts/backup.mjs` + `.github/workflows/backup.yml` — 月度自动备份：每月 1 号 03:30 UTC 用密码登录（走 RLS，4 个 GitHub Secrets：SUPABASE_URL / SUPABASE_ANON_KEY / BACKUP_EMAIL / BACKUP_PASSWORD）导出全部账目 CSV，提交到 `backups` 分支 `monthly/` 下；vercel.json 已禁用该分支的部署；CSV 列格式与 `src/lib/export.ts` 保持一致；手动测试 `gh workflow run monthly-backup`。注意 GitHub 会停用 60 天无活动仓库的定时任务（备份自身的月度提交即算活动，正常自续）
 
 ## 数据约定
 
 - `transactions.amount` 始终为正数，方向由 `type`（expense/income）决定
+- `transactions.currency` 存显示符号 `'€'/'¥'`（004 迁移，存量默认 €）；单笔显示原币种，List 头部/每日小计与 Dashboard 全部按 localStorage `eur-cny-rate`（1€ 兑 ¥ 数，设置里手动填）折算成显示货币（localStorage `currency`），不存历史汇率；CSV 导入和固定收支记入默认取当时的显示货币；import_hash 不含 currency
 - CSV 导入去重靠 `import_hash = sha256(date|amount|type|description)`，同文件内重复行追加序号；`(user_id, import_hash)` 有唯一部分索引兜底
 - `category_rules` 按关键词包含匹配给导入行自动分类，最长关键词优先；导入时用户手动指定的分类会自动沉淀为规则；`(user_id, keyword)` 唯一，`saveRule` 用 upsert（冲突更新为最新分类）
 - CSV 列映射按表头签名存 localStorage（`csv-mappings`），同一银行第二次导入免配置

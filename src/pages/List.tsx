@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Category, Transaction, TxType } from '../lib/types'
 import { deleteTransaction, fetchTransactions, updateTransaction } from '../lib/db'
-import { fmtDateLabel, fmtMoney, getCurrency, monthKey, todayStr } from '../lib/format'
+import { convert, fmtDateLabel, fmtMoney, getCurrency, monthKey, todayStr } from '../lib/format'
+import type { Currency } from '../lib/format'
 import MonthSwitcher from '../components/MonthSwitcher'
 import CategoryGrid from '../components/CategoryGrid'
 import { exportTransactionsCsv } from '../lib/export'
@@ -45,8 +46,13 @@ export default function List({ categories, toast }: Props) {
     return Array.from(byDate.entries())
   }, [txs])
 
-  const totalExpense = txs.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
-  const totalIncome = txs.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+  // 汇总折算成显示币种；单笔仍显示原币种
+  const totalExpense = txs
+    .filter((t) => t.type === 'expense')
+    .reduce((s, t) => s + convert(t.amount, t.currency, currency), 0)
+  const totalIncome = txs
+    .filter((t) => t.type === 'income')
+    .reduce((s, t) => s + convert(t.amount, t.currency, currency), 0)
 
   return (
     <div className="px-4 pt-safe">
@@ -87,7 +93,7 @@ export default function List({ categories, toast }: Props) {
           {groups.map(([date, list]) => {
             const dayExpense = list
               .filter((t) => t.type === 'expense')
-              .reduce((s, t) => s + t.amount, 0)
+              .reduce((s, t) => s + convert(t.amount, t.currency, currency), 0)
             return (
               <section key={date}>
                 <div className="flex items-baseline justify-between border-b border-hairline pb-1.5">
@@ -129,6 +135,7 @@ export default function List({ categories, toast }: Props) {
                             }`}
                           >
                             {t.type === 'income' ? '+' : '−'}
+                            {t.currency}
                             {fmtMoney(t.amount)}
                           </span>
                         </button>
@@ -172,6 +179,7 @@ function EditSheet({
   toast: (msg: string) => void
 }) {
   const [amount, setAmount] = useState(String(tx.amount))
+  const [txCurrency, setTxCurrency] = useState<Currency>(tx.currency)
   const [type, setType] = useState<TxType>(tx.type)
   const [categoryId, setCategoryId] = useState<string | null>(tx.category_id)
   const [date, setDate] = useState(tx.date)
@@ -187,6 +195,7 @@ function EditSheet({
     try {
       await updateTransaction(tx.id, {
         amount: value,
+        currency: txCurrency,
         type,
         category_id: categoryId,
         date,
@@ -244,6 +253,12 @@ function EditSheet({
               </button>
             ))}
           </div>
+          <button
+            onClick={() => setTxCurrency((c) => (c === '€' ? '¥' : '€'))}
+            className="num rounded-lg border border-hairline bg-paper-raised px-2.5 py-2 text-sm text-ink-soft active:bg-hairline"
+          >
+            {txCurrency}
+          </button>
           <input
             type="text"
             inputMode="decimal"

@@ -143,6 +143,7 @@ export default function Import({ categories, toast }: Props) {
           toInsert.slice(i, i + 200).map((r) => ({
             date: r.date,
             amount: r.amount,
+            currency: getCurrency(),
             type: r.type,
             description: r.description,
             category_id: r.categoryId,
