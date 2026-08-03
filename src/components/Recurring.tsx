@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Category, RecurringItem, TxType } from '../lib/types'
 import {
   deleteRecurringItem,
@@ -9,13 +9,17 @@ import {
   fetchRecurringItems,
 } from '../lib/db'
 import { buildRecurringTx, dayInMonth, recurringHash } from '../lib/recurring'
-import { fmtMoney, fmtMonth, getCurrency, monthKey } from '../lib/format'
+import { fmtMoney, fmtMonth, getCurrency, monthKey, prevMonth } from '../lib/format'
 import CategoryGrid from './CategoryGrid'
+import MonthSwitcher from './MonthSwitcher'
 
 /** 金额输入闸门：整数最多 8 位、小数最多 2 位（与 Add/EditSheet 一致） */
 const AMOUNT_RE = /^\d{1,8}(\.\d{0,2})?$/
 
 const DAYS = Array.from({ length: 31 }, (_, i) => i + 1)
+
+/** 补记回溯上限：含当前月在内最近 12 个月 */
+const BACKFILL_MONTHS = 12
 
 interface SectionProps {
   categories: Category[]
@@ -102,7 +106,7 @@ export default function RecurringSection({ categories, toast, onDataChange }: Se
           disabled={items.length === 0}
           className="flex-1 rounded-xl bg-ink py-2.5 text-sm font-semibold text-paper disabled:opacity-40"
         >
-          记入本月
+          记入固定收支
         </button>
       </div>
 
@@ -334,14 +338,21 @@ function RecurringPostSheet({
   onClose: () => void
   onPosted: () => void
 }) {
-  const month = monthKey()
+  // 可切月：默认当前月，往回最多 BACKFILL_MONTHS 个月用于补记
+  const [month, setMonth] = useState(monthKey())
   const [rows, setRows] = useState<PostRow[] | null>(null) // null = 查已记中
   const [busy, setBusy] = useState(false)
   const currency = getCurrency()
   const monthEnd = dayInMonth(month, 31)
+  const minMonth = useMemo(() => {
+    let m = monthKey()
+    for (let i = 0; i < BACKFILL_MONTHS - 1; i++) m = prevMonth(m)
+    return m
+  }, [])
 
   useEffect(() => {
     let stale = false
+    setRows(null) // 切月先回到「核对中」，避免上个月的勾选状态串到新月份
     fetchExistingHashes(items.map((i) => recurringHash(i.id, month)))
       .then((posted) => {
         if (stale) return
@@ -368,7 +379,7 @@ function RecurringPostSheet({
       stale = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [month])
 
   function patchRow(i: number, patch: Partial<PostRow>) {
     setRows((rs) => rs && rs.map((r, j) => (j === i ? { ...r, ...patch } : r)))
@@ -389,12 +400,12 @@ function RecurringPostSheet({
           buildRecurringTx(r.item, month, getCurrency(), { amount: parseFloat(r.amount), date: r.date }),
         ),
       )
-      toast(`已记入 ${selected.length} 笔`)
+      toast(`已记入 ${fmtMonth(month)} ${selected.length} 笔`)
       onPosted()
     } catch (e) {
       const msg = (e as Error).message
       // 并发双击等极端情况被唯一索引挡下
-      toast(msg.includes('duplicate') ? '本月已记过，未重复入账' : `记入失败：${msg}`)
+      toast(msg.includes('duplicate') ? '该月已记过，未重复入账' : `记入失败：${msg}`)
       onClose()
     } finally {
       setBusy(false)
@@ -408,10 +419,12 @@ function RecurringPostSheet({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-hairline" />
-        <h3 className="text-base font-bold">记入本月 · {fmtMonth(month)}</h3>
+        <h3 className="text-base font-bold">记入固定收支</h3>
+        {/* 切月补记：往回最多 12 个月，不能超过当前月 */}
+        <MonthSwitcher month={month} onChange={(m) => m >= minMonth && setMonth(m)} />
 
         {!rows ? (
-          <p className="py-8 text-center text-sm text-stone">正在核对本月记录…</p>
+          <p className="py-8 text-center text-sm text-stone">正在核对该月记录…</p>
         ) : (
           <>
             <ul className="mt-4 divide-y divide-hairline">
@@ -438,7 +451,7 @@ function RecurringPostSheet({
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium">{r.item.name}</span>
                       {r.posted ? (
-                        <span className="block text-xs text-stone">本月已记</span>
+                        <span className="block text-xs text-stone">该月已记</span>
                       ) : (
                         <input
                           type="date"
@@ -483,7 +496,11 @@ function RecurringPostSheet({
               disabled={busy || selected.length === 0}
               className="mt-4 w-full rounded-xl bg-ink py-3 text-sm font-semibold text-paper disabled:opacity-40"
             >
-              {busy ? '记入中…' : selected.length === 0 ? '没有可记入的项' : `确认记入 ${selected.length} 笔`}
+              {busy
+                ? '记入中…'
+                : selected.length === 0
+                  ? '没有可记入的项'
+                  : `确认记入 ${fmtMonth(month)} · ${selected.length} 笔`}
             </button>
           </>
         )}
