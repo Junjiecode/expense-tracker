@@ -88,33 +88,44 @@ export default function Dashboard({ categories, toast, onCategoriesChange }: Pro
     }
   }, [month, reload])
 
-  // 统一折算成显示币种，下游聚合与图表全部消费已折算数据；固定收支开关在此统一过滤
-  // 只过滤固定支出（type === 'expense'），固定收入（如工资）始终保留
-  const convTxs = useMemo(
+  // 统一折算成显示币种，下游聚合与图表全部消费已折算数据
+  const allTxs = useMemo(
     () =>
-      rangeTxs
-        .filter((t) => !hideRecurring || t.type !== 'expense' || !isRecurringTx(t))
-        .map((t) =>
-          t.currency === currency
-            ? t
-            : { ...t, amount: convert(t.amount, t.currency, currency, rate), currency },
-        ),
-    [rangeTxs, currency, rate, hideRecurring],
+      rangeTxs.map((t) =>
+        t.currency === currency
+          ? t
+          : { ...t, amount: convert(t.amount, t.currency, currency, rate), currency },
+      ),
+    [rangeTxs, currency, rate],
+  )
+
+  // 图表口径：排除固定支出（只过滤 type === 'expense'，固定收入如工资始终保留）
+  // 月度汇总卡片不用这份数据——那里要的是真实进出账，见 monthAll
+  const convTxs = useMemo(
+    () => allTxs.filter((t) => !hideRecurring || t.type !== 'expense' || !isRecurringTx(t)),
+    [allTxs, hideRecurring],
   )
 
   const txs = useMemo(() => convTxs.filter((t) => t.date.startsWith(month)), [convTxs, month])
+  // 汇总卡片专用：本月全部账目，不受开关影响
+  const monthAll = useMemo(() => allTxs.filter((t) => t.date.startsWith(month)), [allTxs, month])
   // 排除固定支出后本月是否被过滤成空（用于区分"没有账目"与"被开关过滤掉"）
-  const hiddenByFilter =
-    txs.length === 0 && hideRecurring && rangeTxs.some((t) => t.date.startsWith(month))
+  const hiddenByFilter = txs.length === 0 && hideRecurring && monthAll.length > 0
   const expenses = useMemo(() => txs.filter((t) => t.type === 'expense'), [txs])
-  const totalExpense = expenses.reduce((s, t) => s + t.amount, 0)
-  const totalIncome = txs.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+  // 汇总卡片口径：真实进出账，不受开关影响
+  const totalExpense = monthAll
+    .filter((t) => t.type === 'expense')
+    .reduce((s, t) => s + t.amount, 0)
+  const totalIncome = monthAll.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+  // 图表口径：与饼图分片、每日柱状图同源，开关生效
+  const chartExpense = expenses.reduce((s, t) => s + t.amount, 0)
+  // 环比也用全量口径，与卡片里的 totalExpense 保持同一基准
   const prevExpense = useMemo(() => {
     const pm = prevMonth(month)
-    return convTxs
+    return allTxs
       .filter((t) => t.date.startsWith(pm) && t.type === 'expense')
       .reduce((s, t) => s + t.amount, 0)
-  }, [convTxs, month])
+  }, [allTxs, month])
   const momPct = prevExpense > 0 ? ((totalExpense - prevExpense) / prevExpense) * 100 : null
   const balance = totalIncome - totalExpense
 
@@ -171,7 +182,7 @@ export default function Dashboard({ categories, toast, onCategoriesChange }: Pro
 
   // 日均支出：当前月按已过天数，历史月按整月天数
   const elapsedDays = month === monthKey() ? Number(todayStr().slice(8, 10)) : daily.length
-  const dailyAvg = elapsedDays > 0 ? totalExpense / elapsedDays : 0
+  const dailyAvg = elapsedDays > 0 ? chartExpense / elapsedDays : 0
 
   // 近半年逐月收支（窗口锚定选中月，选中月在最右）
   const trend = useMemo(() => {
@@ -252,25 +263,10 @@ export default function Dashboard({ categories, toast, onCategoriesChange }: Pro
             重试
           </button>
         </div>
-      ) : txs.length === 0 ? (
+      ) : monthAll.length === 0 ? (
         <div className="py-20 text-center">
           <p className="text-4xl">🧮</p>
-          {hiddenByFilter ? (
-            <>
-              <p className="mt-3 text-sm text-stone">{fmtMonth(month)}只有固定支出，已被过滤</p>
-              <button
-                onClick={() => {
-                  setHide(false)
-                  setHideRecurring(false)
-                }}
-                className="mt-4 rounded-xl border border-hairline bg-paper-raised px-5 py-2 text-sm font-medium active:bg-hairline/40"
-              >
-                关闭排除固定支出
-              </button>
-            </>
-          ) : (
-            <p className="mt-3 text-sm text-stone">{fmtMonth(month)}没有账目</p>
-          )}
+          <p className="mt-3 text-sm text-stone">{fmtMonth(month)}没有账目</p>
         </div>
       ) : (
         <div className="space-y-6 pb-6 pt-2">
@@ -316,6 +312,22 @@ export default function Dashboard({ categories, toast, onCategoriesChange }: Pro
             </div>
           </section>
 
+          {hiddenByFilter ? (
+            /* 卡片照常显示真实进出账，图表因开关无数据可画 */
+            <div className="rounded-2xl border border-dashed border-hairline py-10 text-center">
+              <p className="text-sm text-stone">{fmtMonth(month)}只有固定支出，图表已全部过滤</p>
+              <button
+                onClick={() => {
+                  setHide(false)
+                  setHideRecurring(false)
+                }}
+                className="mt-3 rounded-xl border border-hairline bg-paper-raised px-5 py-2 text-sm font-medium active:bg-hairline/40"
+              >
+                关闭排除固定支出
+              </button>
+            </div>
+          ) : (
+            <>
           {/* 支出节奏：逐日累计 vs 上月同期 */}
           <CumulativeChart rangeTxs={convTxs} month={month} currency={currency} />
 
@@ -343,25 +355,25 @@ export default function Dashboard({ categories, toast, onCategoriesChange }: Pro
                     <Tooltip
                       formatter={(v) => {
                         const n = Number(v)
-                        const pct = totalExpense > 0 ? Math.round((n / totalExpense) * 100) : 0
+                        const pct = chartExpense > 0 ? Math.round((n / chartExpense) * 100) : 0
                         return `${currency}${fmtMoney(n)} · ${pct}%`
                       }}
                       contentStyle={tooltipStyle}
                     />
                   </PieChart>
                 </ResponsiveContainer>
-                {/* 环形中心：本月总支出 */}
+                {/* 环形中心：与分片同源的支出合计（开关生效） */}
                 <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
                   <p className="text-xs text-stone">支出</p>
                   <p className="num text-lg font-semibold">
-                    {currency}{fmtMoney(totalExpense)}
+                    {currency}{fmtMoney(chartExpense)}
                   </p>
                 </div>
               </div>
               {/* 分类排行：兼作图例与数据表 */}
               <ul className="mt-2 space-y-2.5">
                 {byCategory.map((c) => {
-                  const pct = totalExpense > 0 ? (c.value / totalExpense) * 100 : 0
+                  const pct = chartExpense > 0 ? (c.value / chartExpense) * 100 : 0
                   return (
                     <li key={c.id} className="flex items-center gap-2.5">
                       <span className="text-base">{c.icon}</span>
@@ -503,6 +515,8 @@ export default function Dashboard({ categories, toast, onCategoriesChange }: Pro
             catMap={catMap}
             currency={currency}
           />
+            </>
+          )}
         </div>
       )}
     </div>
