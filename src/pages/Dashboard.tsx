@@ -19,11 +19,14 @@ import {
   fmtMoney,
   fmtMonth,
   getCurrency,
+  getHideRecurring,
   getRate,
   monthKey,
   prevMonth,
+  setHideRecurring,
   todayStr,
 } from '../lib/format'
+import { isRecurringTx } from '../lib/recurring'
 import MonthSwitcher from '../components/MonthSwitcher'
 import Settings from '../components/Settings'
 import { useChartTheme } from '../components/charts/chartTheme'
@@ -62,6 +65,7 @@ export default function Dashboard({ categories, toast, onCategoriesChange }: Pro
   const [showSettings, setShowSettings] = useState(false)
   const [currency, setCurrencyView] = useState(getCurrency())
   const [rate, setRateView] = useState(getRate())
+  const [hideRecurring, setHide] = useState(getHideRecurring())
   const { C, catColor, tooltipStyle } = useChartTheme()
   const catMap = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories])
 
@@ -84,18 +88,24 @@ export default function Dashboard({ categories, toast, onCategoriesChange }: Pro
     }
   }, [month, reload])
 
-  // 统一折算成显示币种，下游聚合与图表全部消费已折算数据
+  // 统一折算成显示币种，下游聚合与图表全部消费已折算数据；固定收支开关在此统一过滤
+  // 只过滤固定支出（type === 'expense'），固定收入（如工资）始终保留
   const convTxs = useMemo(
     () =>
-      rangeTxs.map((t) =>
-        t.currency === currency
-          ? t
-          : { ...t, amount: convert(t.amount, t.currency, currency, rate), currency },
-      ),
-    [rangeTxs, currency, rate],
+      rangeTxs
+        .filter((t) => !hideRecurring || t.type !== 'expense' || !isRecurringTx(t))
+        .map((t) =>
+          t.currency === currency
+            ? t
+            : { ...t, amount: convert(t.amount, t.currency, currency, rate), currency },
+        ),
+    [rangeTxs, currency, rate, hideRecurring],
   )
 
   const txs = useMemo(() => convTxs.filter((t) => t.date.startsWith(month)), [convTxs, month])
+  // 排除固定支出后本月是否被过滤成空（用于区分"没有账目"与"被开关过滤掉"）
+  const hiddenByFilter =
+    txs.length === 0 && hideRecurring && rangeTxs.some((t) => t.date.startsWith(month))
   const expenses = useMemo(() => txs.filter((t) => t.type === 'expense'), [txs])
   const totalExpense = expenses.reduce((s, t) => s + t.amount, 0)
   const totalIncome = txs.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0)
@@ -200,6 +210,23 @@ export default function Dashboard({ categories, toast, onCategoriesChange }: Pro
           </svg>
         </button>
       </div>
+      <div className="flex items-center gap-2 pt-2">
+        <button
+          onClick={() => {
+            const next = !hideRecurring
+            setHide(next)
+            setHideRecurring(next)
+          }}
+          aria-pressed={hideRecurring}
+          className={`rounded-full border px-3 py-1 text-xs font-medium ${
+            hideRecurring
+              ? 'border-seal bg-seal/5 text-seal'
+              : 'border-hairline bg-paper-raised text-stone active:bg-hairline/40'
+          }`}
+        >
+          排除固定支出
+        </button>
+      </div>
       {showSettings && (
         <Settings
           onClose={() => setShowSettings(false)}
@@ -228,7 +255,22 @@ export default function Dashboard({ categories, toast, onCategoriesChange }: Pro
       ) : txs.length === 0 ? (
         <div className="py-20 text-center">
           <p className="text-4xl">🧮</p>
-          <p className="mt-3 text-sm text-stone">{fmtMonth(month)}没有账目</p>
+          {hiddenByFilter ? (
+            <>
+              <p className="mt-3 text-sm text-stone">{fmtMonth(month)}只有固定支出，已被过滤</p>
+              <button
+                onClick={() => {
+                  setHide(false)
+                  setHideRecurring(false)
+                }}
+                className="mt-4 rounded-xl border border-hairline bg-paper-raised px-5 py-2 text-sm font-medium active:bg-hairline/40"
+              >
+                关闭排除固定支出
+              </button>
+            </>
+          ) : (
+            <p className="mt-3 text-sm text-stone">{fmtMonth(month)}没有账目</p>
+          )}
         </div>
       ) : (
         <div className="space-y-6 pb-6 pt-2">

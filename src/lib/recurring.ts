@@ -1,6 +1,6 @@
 // 固定收支模板 → 当月账目的纯函数逻辑
 import type { Currency } from './format'
-import type { NewTransaction, RecurringItem } from './types'
+import type { NewTransaction, RecurringItem, Transaction } from './types'
 
 /** 当月第 day 号的 YYYY-MM-DD，超出当月天数夹到月末（如 2 月 31 号 → 28/29 号） */
 export function dayInMonth(month: string, day: number): string {
@@ -32,4 +32,9 @@ export function buildRecurringTx(
     source: 'manual',
     import_hash: recurringHash(item.id, month),
   }
+}
+
+/** 固定收支模板「记入本月」生成的账目，import_hash 带 rec: 前缀 */
+export function isRecurringTx(t: Pick<Transaction, 'import_hash'>): boolean {
+  return !!t.import_hash?.startsWith('rec:')
 }

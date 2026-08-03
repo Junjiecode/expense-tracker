@@ -24,6 +24,17 @@ export function setRate(r: number): void {
   localStorage.setItem(RATE_KEY, String(r))
 }
 
+const HIDE_RECURRING_KEY = 'hide-recurring'
+
+/** 分析页默认排除固定收支模板生成的账目；用户可关闭看完整数据 */
+export function getHideRecurring(): boolean {
+  return localStorage.getItem(HIDE_RECURRING_KEY) !== '0'
+}
+
+export function setHideRecurring(v: boolean): void {
+  localStorage.setItem(HIDE_RECURRING_KEY, v ? '1' : '0')
+}
+
 /** 折算金额；不做舍入，显示时再舍 */
 export function convert(amount: number, from: Currency, to: Currency, rate = getRate()): number {
   if (from === to) return amount
