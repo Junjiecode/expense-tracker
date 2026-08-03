@@ -119,14 +119,15 @@ export default function Dashboard({ categories, toast, onCategoriesChange }: Pro
   const totalIncome = monthAll.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0)
   // 图表口径：与饼图分片、每日柱状图同源，开关生效
   const chartExpense = expenses.reduce((s, t) => s + t.amount, 0)
-  // 环比也用全量口径，与卡片里的 totalExpense 保持同一基准
+  // 环比跟随开关：开着比浮动消费，关掉比全量；固定支出每月几乎不变，
+  // 混进去会把波动稀释掉（如 396 vs 222 的 +78% 被摊成 +6%）
   const prevExpense = useMemo(() => {
     const pm = prevMonth(month)
-    return allTxs
+    return convTxs
       .filter((t) => t.date.startsWith(pm) && t.type === 'expense')
       .reduce((s, t) => s + t.amount, 0)
-  }, [allTxs, month])
-  const momPct = prevExpense > 0 ? ((totalExpense - prevExpense) / prevExpense) * 100 : null
+  }, [convTxs, month])
+  const momPct = prevExpense > 0 ? ((chartExpense - prevExpense) / prevExpense) * 100 : null
   const balance = totalIncome - totalExpense
 
   // 分类汇总，按金额降序
@@ -278,7 +279,8 @@ export default function Dashboard({ categories, toast, onCategoriesChange }: Pro
               </p>
               {momPct !== null && (
                 <span className="text-xs text-stone">
-                  支出比上月 {momPct >= 0 ? '↑' : '↓'} {Math.abs(momPct).toFixed(0)}%
+                  {hideRecurring ? '浮动支出' : '支出'}比上月 {momPct >= 0 ? '↑' : '↓'}{' '}
+                  {Math.abs(momPct).toFixed(0)}%
                 </span>
               )}
             </div>
