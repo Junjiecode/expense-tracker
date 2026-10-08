@@ -1,0 +1,15 @@
+# 每天 ping 一次 Supabase，防止免费版项目因长期无 API 活动被自动 pause
+# 手动测试：Actions 页面选 keepalive → Run workflow，或 `gh workflow run keepalive`
+name: keepalive
+
+on:
+  schedule:
+    - cron: '0 6 * * *' # 每天 06:00 UTC
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase
+        run: curl -sS -o /dev/null -w "HTTP %{http_code}\n" --fail-with-body https://fdkbphitekmzsvebrrkz.supabase.co/auth/v1/health || true
